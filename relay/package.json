@@ -1,0 +1,14 @@
+{
+  "name": "twatter-relay",
+  "version": "1.0.0",
+  "description": "Twatter Nostr relay server",
+  "main": "relay.js",
+  "scripts": {
+    "start": "node relay.js",
+    "dev": "node --watch relay.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "ws": "^8.16.0"
+  }
+}

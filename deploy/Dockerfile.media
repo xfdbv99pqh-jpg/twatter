@@ -1,0 +1,10 @@
+FROM node:20-alpine
+WORKDIR /app
+COPY media-server/package*.json ./
+RUN npm ci --production
+COPY media-server/*.js ./
+RUN mkdir -p /data/uploads
+ENV UPLOAD_DIR=/data/uploads
+ENV PORT=7778
+EXPOSE 7778
+CMD ["node", "media.js"]

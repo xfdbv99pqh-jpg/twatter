@@ -1,0 +1,14 @@
+{
+  "name": "twatter-media",
+  "version": "1.0.0",
+  "description": "Twatter media hosting server for images",
+  "main": "media.js",
+  "scripts": {
+    "start": "node media.js",
+    "dev": "node --watch media.js"
+  },
+  "dependencies": {
+    "busboy": "^1.6.0",
+    "sharp": "^0.33.0"
+  }
+}

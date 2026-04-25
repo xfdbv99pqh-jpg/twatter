@@ -1,0 +1,117 @@
+version: "3.9"
+
+services:
+  # ---- TWATTER RELAY (Nostr WebSocket server) ----
+  relay:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.relay
+    ports:
+      - "7777:7777"
+    volumes:
+      - relay-data:/data
+    environment:
+      - PORT=7777
+      - DB_PATH=/data/twatter-relay.db
+      - RELAY_NAME=Twatter Relay
+      - RELAY_DESC=The official Twatter community relay. No algorithms, just time.
+      - RELAY_CONTACT=${RELAY_CONTACT:-admin@twatter.com}
+      - MAX_EVENT_SIZE=65536
+      - MAX_SUBS=20
+      - ENABLE_NIP04=true
+      # Pro gating — points to the payment server
+      - PAYMENT_SERVER=http://payment:7779
+      - FREE_RATE_LIMIT=10
+      - PRO_RATE_LIMIT=100
+      - FREE_CONTENT_LIMIT=300
+      - PRO_CONTENT_LIMIT=2000
+      - PRO_CACHE_TTL=300
+    depends_on:
+      - payment
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:7777/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ---- MEDIA SERVER (image hosting) ----
+  media:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.media
+    ports:
+      - "7778:7778"
+    volumes:
+      - media-data:/data
+    environment:
+      - PORT=7778
+      - UPLOAD_DIR=/data/uploads
+      - BASE_URL=${MEDIA_BASE_URL:-https://media.twatter.com}
+      - MAX_FILE_SIZE=10485760
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:7778/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ---- ALBY HUB (self-custodial Lightning node) ----
+  albyhub:
+    image: ghcr.io/getalby/hub:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - albyhub-data:/data
+    environment:
+      - WORK_DIR=/data
+    restart: unless-stopped
+
+  # ---- PAYMENT SERVER (Lightning / Alby Hub) ----
+  payment:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.payment
+    ports:
+      - "7779:7779"
+    volumes:
+      - payment-data:/data
+    environment:
+      - PORT=7779
+      - DB_PATH=/data/twatter-payments.db
+      - CLIENT_URL=${CLIENT_URL:-https://twatter.com}
+      # Alby Hub config — set these in .env file
+      - ALBYHUB_URL=${ALBYHUB_URL:-http://albyhub:8080}
+      - ALBYHUB_PASSWORD=${ALBYHUB_PASSWORD}
+      - NWC_URL=${NWC_URL}
+      - PRO_PRICE_SATS=${PRO_PRICE_SATS:-21000}
+      - PRO_DURATION_DAYS=${PRO_DURATION_DAYS:-30}
+    depends_on:
+      - albyhub
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:7779/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ---- NGINX REVERSE PROXY (SSL + routing) ----
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - relay
+      - media
+      - payment
+    restart: unless-stopped
+
+volumes:
+  relay-data:
+  media-data:
+  payment-data:
+  albyhub-data:

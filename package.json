@@ -1,0 +1,54 @@
+{
+  "name": "twatter",
+  "version": "2.0.0",
+  "description": "Decentralized social media powered by Nostr. No algorithms, just time.",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron-dev": "npx cross-env ELECTRON_DEV=true electron .",
+    "electron-build": "npm run build && npx electron-builder",
+    "electron-win": "npm run build && npx electron-builder --win",
+    "electron-mac": "npm run build && npx electron-builder --mac",
+    "electron-linux": "npm run build && npx electron-builder --linux"
+  },
+  "keywords": ["nostr", "social-media", "decentralized", "bitcoin", "lightning"],
+  "author": "Twatter",
+  "license": "MIT",
+  "dependencies": {
+    "@vitejs/plugin-react": "^6.0.1",
+    "nostr-tools": "^2.23.3",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "vite": "^8.0.1"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0",
+    "cross-env": "^7.0.3"
+  },
+  "build": {
+    "appId": "com.twatter.app",
+    "productName": "Twatter",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "win": {
+      "target": ["nsis"],
+      "icon": "public/icon.png"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "icon": "public/icon.png"
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "icon": "public/icon.png"
+    }
+  }
+}

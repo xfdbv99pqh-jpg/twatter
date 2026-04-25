@@ -1,0 +1,10 @@
+FROM node:20-alpine
+WORKDIR /app
+COPY relay/package*.json ./
+RUN npm ci --production
+COPY relay/*.js ./
+RUN mkdir -p /data
+ENV DB_PATH=/data/twatter-relay.db
+ENV PORT=7777
+EXPOSE 7777
+CMD ["node", "relay.js"]

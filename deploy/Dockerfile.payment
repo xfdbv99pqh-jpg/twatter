@@ -1,0 +1,10 @@
+FROM node:20-alpine
+WORKDIR /app
+COPY payment-server/package*.json ./
+RUN npm ci --production
+COPY payment-server/*.js ./
+RUN mkdir -p /data
+ENV DB_PATH=/data/twatter-payments.db
+ENV PORT=7779
+EXPOSE 7779
+CMD ["node", "payment.js"]
