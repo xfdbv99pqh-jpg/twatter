@@ -17,10 +17,10 @@ import * as nip19 from "nostr-tools/nip19";
 // ======================== CONFIG ========================
 const STORAGE_KEY = "twatter-nostr";
 const DEFAULT_RELAYS = [
+  "wss://relay.twatter.xyz",
   "wss://relay.damus.io",
   "wss://nos.lol",
   "wss://relay.nostr.band",
-  "wss://relay.snort.social",
 ];
 const FREE_POST_LIMIT = 300;
 const PRO_POST_LIMIT = 2000;
