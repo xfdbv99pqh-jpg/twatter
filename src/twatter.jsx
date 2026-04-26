@@ -66,29 +66,33 @@ function parseProfile(event) {
 function getImageFromEvent(event) { const t = event.tags?.find((t) => t[0] === "image"); if (t) return t[1]; const m = event.content?.match(/https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|svg)(?:\?\S*)?/i); return m ? m[0] : null; }
 function getTextWithoutImageUrl(event) { const img = getImageFromEvent(event); if (!img) return event.content; return event.content.replace(img, "").trim(); }
 
-// ======================== ZAP HELPERS (NIP-57) ========================
-async function fetchLnurlData(lud16) {
-  const [user, domain] = lud16.split("@");
-  if (!user || !domain) throw new Error("Invalid Lightning address");
-  const res = await fetch(`https://${domain}/.well-known/lnurlp/${user}`);
-  if (!res.ok) throw new Error("Failed to fetch Lightning address info");
+// ======================== ZAP HELPERS ========================
+// Zaps now route through the Twatter payment server (2% fee)
+async function createRoutedZap(senderPubkey, recipientLud16, amountSats) {
+  const res = await fetch(`${PAYMENT_SERVER}/zap`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sender_pubkey: senderPubkey, recipient_lud16: recipientLud16, amount_sats: amountSats })
+  });
+  if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || "Failed to create zap"); }
   return res.json();
 }
 
-async function createZapInvoice(lnurlData, amountSats, zapRequestEvent) {
-  const amountMsats = amountSats * 1000;
-  if (amountMsats < (lnurlData.minSendable || 1000) || amountMsats > (lnurlData.maxSendable || 1e12)) throw new Error("Amount out of range");
-  const url = new URL(lnurlData.callback);
-  url.searchParams.set("amount", String(amountMsats));
-  if (lnurlData.allowsNostr && zapRequestEvent) url.searchParams.set("nostr", JSON.stringify(zapRequestEvent));
-  const res = await fetch(url.toString());
-  if (!res.ok) throw new Error("Failed to get Lightning invoice");
-  const data = await res.json();
-  if (!data.pr) throw new Error("No invoice in response");
-  return data.pr;
+async function fetchZapInfo() {
+  try {
+    const res = await fetch(`${PAYMENT_SERVER}/zap-info`, { signal: AbortSignal.timeout(3000) });
+    if (!res.ok) return { fee_percent: 2, min_zap_sats: 10 };
+    return res.json();
+  } catch { return { fee_percent: 2, min_zap_sats: 10 }; }
 }
 
-// payWithWebLN removed — ZapModal now handles WebLN inline with manual invoice fallback
+async function fetchPriceInfo() {
+  try {
+    const res = await fetch(`${PAYMENT_SERVER}/price`, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return null;
+    return res.json();
+  } catch { return null; }
+}
 
 // ======================== PRO STATUS ========================
 async function checkProStatus(pubkey) {
@@ -126,6 +130,7 @@ const ZapModal = ({ targetProfile, targetEvent, sk, pk, relays, onClose }) => {
   const [error, setError] = useState("");
   const [invoiceStr, setInvoiceStr] = useState("");
   const [invoiceCopied, setInvoiceCopied] = useState(false);
+  const [zapFee, setZapFee] = useState({ fee_percent: 2, fee_sats: 0, payout_sats: 0 });
   const finalAmount = custom ? parseInt(custom) || 0 : amount;
 
   const doZap = async () => {
@@ -137,31 +142,26 @@ const ZapModal = ({ targetProfile, targetEvent, sk, pk, relays, onClose }) => {
       setError("");
       setInvoiceStr("");
       setInvoiceCopied(false);
-      const lnurlData = await fetchLnurlData(lud16);
-      // Build NIP-57 zap request
-      const zapTags = [["relays", ...relays], ["amount", String(finalAmount * 1000)], ["p", targetProfile.pubkey]];
-      if (targetEvent) zapTags.push(["e", targetEvent.id]);
-      const zapRequest = makeEvent(9734, "", zapTags, sk);
-      const invoice = await createZapInvoice(lnurlData, finalAmount, lnurlData.allowsNostr ? zapRequest : null);
-      setInvoiceStr(invoice);
+      // Route through payment server
+      const zapData = await createRoutedZap(pk, lud16, finalAmount);
+      setZapFee({ fee_percent: zapData.fee_percent, fee_sats: zapData.fee_sats, payout_sats: zapData.payout_sats });
+      setInvoiceStr(zapData.bolt11);
       setStatus("invoice");
       // Try WebLN auto-pay if available
       if (window.webln) {
         try {
           setStatus("paying");
           await window.webln.enable();
-          await window.webln.sendPayment(invoice);
+          await window.webln.sendPayment(zapData.bolt11);
           setStatus("success");
           setTimeout(onClose, 1800);
           return;
         } catch (e) {
-          // WebLN failed or user rejected — fall back to manual invoice
           setStatus("invoice");
         }
       }
-      // No WebLN or it failed — show invoice for manual payment
     } catch (e) {
-      setError(e.message || "Failed to create invoice");
+      setError(e.message || "Failed to create zap");
       setStatus("error");
     }
   };
@@ -174,7 +174,8 @@ const ZapModal = ({ targetProfile, targetEvent, sk, pk, relays, onClose }) => {
     window.open(`lightning:${invoiceStr}`, "_blank");
   };
 
-  const statusMsg = { fetching: "Getting Lightning info...", paying: "Waiting for wallet...", success: "⚡ Zapped!", error: "" };
+  const statusMsg = { fetching: "Creating zap...", paying: "Waiting for wallet...", success: "⚡ Zapped!", error: "" };
+  const feeSats = Math.max(1, Math.round(finalAmount * 2 / 100));
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -194,7 +195,12 @@ const ZapModal = ({ targetProfile, targetEvent, sk, pk, relays, onClose }) => {
                 </button>
               ))}
             </div>
-            <input className="input mono" style={{ marginBottom: 14 }} type="number" placeholder="Custom amount (sats)" value={custom} onChange={(e) => setCustom(e.target.value)} min="1"/>
+            <input className="input mono" style={{ marginBottom: 8 }} type="number" placeholder="Custom amount (sats)" value={custom} onChange={(e) => setCustom(e.target.value)} min="1"/>
+            {finalAmount > 0 && (
+              <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--fg-mute)", marginBottom: 14, textAlign: "center" }}>
+                {formatSats(finalAmount - feeSats)} to {targetProfile?.name || "recipient"} · {feeSats} sat fee (2%)
+              </div>
+            )}
           </>
         )}
 
@@ -203,14 +209,15 @@ const ZapModal = ({ targetProfile, targetEvent, sk, pk, relays, onClose }) => {
           <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--saffron)", textAlign: "center", marginBottom: 12, padding: "8px", background: "var(--surface-2)", borderRadius: 8 }}>{statusMsg[status]}</div>
         )}
         {status === "success" && (
-          <div style={{ fontFamily: "var(--mono)", fontSize: 14, color: "var(--green)", textAlign: "center", padding: "16px", background: "var(--surface-2)", borderRadius: 8 }}>⚡ Zapped {formatSats(finalAmount)} sats!</div>
+          <div style={{ fontFamily: "var(--mono)", fontSize: 14, color: "var(--green)", textAlign: "center", padding: "16px", background: "var(--surface-2)", borderRadius: 8 }}>⚡ Zapped {formatSats(zapFee.payout_sats)} sats!</div>
         )}
         {status === "error" && <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--red)", marginBottom: 12, lineHeight: 1.6, whiteSpace: "pre-line" }}>{error}</div>}
 
-        {/* Invoice display — the core payment UI */}
+        {/* Invoice display */}
         {status === "invoice" && invoiceStr && (
           <div style={{ marginBottom: 14 }}>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--fg-faint)", marginBottom: 8, textAlign: "center" }}>Pay {formatSats(finalAmount)} sats with any Lightning wallet:</div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--fg-faint)", marginBottom: 4, textAlign: "center" }}>Pay {formatSats(finalAmount)} sats with any Lightning wallet</div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--fg-mute)", marginBottom: 8, textAlign: "center" }}>{formatSats(zapFee.payout_sats)} to {targetProfile?.name || "recipient"} · {zapFee.fee_sats} sat fee</div>
             <div style={{ background: "var(--surface-2)", border: "1px solid var(--hairline)", borderRadius: 8, padding: 12, wordBreak: "break-all", fontFamily: "var(--mono)", fontSize: 10, color: "var(--fg-dim)", maxHeight: 80, overflowY: "auto", lineHeight: 1.5, cursor: "pointer" }} onClick={copyInvoice} title="Click to copy">
               {invoiceStr}
             </div>
@@ -222,7 +229,7 @@ const ZapModal = ({ targetProfile, targetEvent, sk, pk, relays, onClose }) => {
                 OPEN WALLET
               </button>
             </div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 9, color: "var(--fg-mute)", textAlign: "center", marginTop: 8 }}>Copy this invoice and paste it into your Lightning wallet to pay, or tap "Open Wallet" to launch your default wallet app.</div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 9, color: "var(--fg-mute)", textAlign: "center", marginTop: 8 }}>Copy and paste into your Lightning wallet, or tap "Open Wallet" to launch your wallet app.</div>
           </div>
         )}
 
@@ -254,7 +261,11 @@ const ProModal = ({ pk, onClose, onProActivated }) => {
   const [invoice, setInvoice] = useState(null);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [priceInfo, setPriceInfo] = useState(null);
   const pollRef = useRef(null);
+
+  // Fetch current price on mount
+  useEffect(() => { fetchPriceInfo().then((info) => { if (info) setPriceInfo(info); }); }, []);
 
   const cleanup = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
 
@@ -336,8 +347,9 @@ const ProModal = ({ pk, onClose, onProActivated }) => {
               ))}
             </div>
             <div style={{ textAlign: "center", marginBottom: 16 }}>
-              <span style={{ fontFamily: "var(--mono)", fontSize: 24, fontWeight: 700, color: "var(--saffron)" }}>21,000 sats</span>
+              <span style={{ fontFamily: "var(--mono)", fontSize: 24, fontWeight: 700, color: "var(--saffron)" }}>$5</span>
               <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--fg-mute)" }}> / 30 days</span>
+              {priceInfo && <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--fg-mute)", marginTop: 4 }}>≈ {formatSats(priceInfo.pro_price_sats)} sats at current rate</div>}
             </div>
             <button onClick={createInvoice} className="btn primary" style={{ width: "100%", marginBottom: 10 }}>⚡ PAY WITH LIGHTNING</button>
             <div style={{ textAlign: "center", fontFamily: "var(--mono)", fontSize: 10, color: "var(--fg-mute)", lineHeight: 1.6 }}>
@@ -940,7 +952,7 @@ export default function Twatter() {
                 <span style={{ fontSize: 20 }}>⭐</span>
                 <div>
                   <div style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 700, color: "var(--accent)" }}>Upgrade to Twatter Pro</div>
-                  <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--fg-mute)", marginTop: 2 }}>21,000 sats / 30 days · Pay with Lightning</div>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--fg-mute)", marginTop: 2 }}>$5 / 30 days · Pay with Lightning</div>
                 </div>
               </div>
             )}
@@ -1004,12 +1016,12 @@ export default function Twatter() {
 
                 <div style={{ marginBottom: 14 }}>
                   <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", marginBottom: 6 }}>5. PRO SUBSCRIPTIONS & PAYMENTS</div>
-                  <div>Twatter Pro is an optional paid tier. Payments are made via the Bitcoin Lightning Network. All payments are final and non-refundable — this is inherent to Lightning transactions. Pro status is tied to your public key and lasts for the stated duration (currently 30 days per payment). Twatter is not a financial service and does not hold or custody funds.</div>
+                  <div>Twatter Pro is an optional paid tier priced at $5 USD per 30 days (converted to Bitcoin sats at current market rate). Payments are made via the Bitcoin Lightning Network. All payments are final and non-refundable — this is inherent to Lightning transactions. Pro status is tied to your public key and lasts for the stated duration. Twatter is not a financial service and does not hold or custody funds.</div>
                 </div>
 
                 <div style={{ marginBottom: 14 }}>
                   <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", marginBottom: 6 }}>6. ZAPS (LIGHTNING TIPS)</div>
-                  <div>Zaps are voluntary peer-to-peer Lightning payments between users, facilitated through the NIP-57 protocol. Twatter does not process, custody, or take a cut of zaps. Zap transactions are between the sender's wallet and the recipient's Lightning address. Twatter provides the interface only.</div>
+                  <div>Zaps are voluntary Lightning payments between users. Zaps sent through Twatter are routed through our payment server, which applies a 2% service fee. The remaining amount is forwarded to the recipient's Lightning address. The fee is clearly displayed before you confirm any zap. Twatter does not custody user funds — payments are processed and forwarded immediately.</div>
                 </div>
 
                 <div style={{ marginBottom: 14 }}>

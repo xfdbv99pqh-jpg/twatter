@@ -84,8 +84,10 @@ services:
       - ALBYHUB_URL=${ALBYHUB_URL:-http://albyhub:8080}
       - ALBYHUB_PASSWORD=${ALBYHUB_PASSWORD}
       - NWC_URL=${NWC_URL}
-      - PRO_PRICE_SATS=${PRO_PRICE_SATS:-21000}
+      - PRO_PRICE_USD=${PRO_PRICE_USD:-5.00}
+      - PRO_PRICE_SATS=${PRO_PRICE_SATS:-0}
       - PRO_DURATION_DAYS=${PRO_DURATION_DAYS:-30}
+      - ZAP_FEE_PERCENT=${ZAP_FEE_PERCENT:-2.0}
     depends_on:
       - albyhub
     restart: unless-stopped
