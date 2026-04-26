@@ -455,6 +455,11 @@ export default function Twatter() {
   const [showTweaks, setShowTweaks] = useState(false);
   const [showMobileKitchen, setShowMobileKitchen] = useState(false);
 
+  // --- Search ---
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const searchTimerRef = useRef(null);
+
   // ======================== LOAD KEYS ========================
   useEffect(() => {
     (async () => {
@@ -573,6 +578,81 @@ export default function Twatter() {
   const generateKeys = () => { const newSk = generateSecretKey(); const newPk = getPublicKey(newSk); setSk(newSk); setPk(newPk); setSetupDone(true); };
   const importKeys = () => { let key = importKey.trim(); try { if (key.startsWith("nsec")) { const d = nip19.decode(key); if (d.type === "nsec") key = toHex(d.data); } if (/^[0-9a-f]{64}$/i.test(key)) { const skBytes = fromHex(key); const newPk = getPublicKey(skBytes); setSk(skBytes); setPk(newPk); setSetupDone(true); setImportKey(""); checkProStatus(newPk).then(setIsPro); } } catch {} };
   const logout = async () => { subsRef.current.forEach((s) => { try { s.close(); } catch {} }); subsRef.current = []; if (poolRef.current) { try { poolRef.current.close(relays); } catch {} poolRef.current = null; } setSk(null); setPk(null); setSetupDone(false); setPosts([]); setProfiles({}); setContacts([]); setReactions({}); setMyReactions(new Set()); setZaps({}); setDmMessages({}); setView("feed"); setIsPro(false); await store.del(STORAGE_KEY); };
+
+  // ======================== SEARCH ========================
+  const doSearch = useCallback((query) => {
+    if (!query.trim()) { setSearchResults([]); setSearching(false); return; }
+    const pool = poolRef.current;
+    if (!pool) return;
+
+    // Check if it's an npub or hex pubkey — direct lookup
+    let directPk = null;
+    try {
+      const q = query.trim();
+      if (q.startsWith("npub")) { const d = nip19.decode(q); if (d.type === "npub") directPk = d.data; }
+      else if (/^[0-9a-f]{64}$/i.test(q)) directPk = q;
+    } catch {}
+
+    if (directPk) {
+      setSearching(true);
+      pool.querySync(relays, { kinds: [0], authors: [directPk], limit: 1 }).then((evs) => {
+        if (evs[0]) {
+          const p = parseProfile(evs[0]);
+          if (p) {
+            setProfiles((prev) => ({ ...prev, [directPk]: p }));
+            setSearchResults([p]);
+          }
+        } else { setSearchResults([]); }
+        setSearching(false);
+      }).catch(() => setSearching(false));
+      return;
+    }
+
+    // Local search first — filter cached profiles
+    const q = query.toLowerCase();
+    const local = Object.values(profiles).filter((p) =>
+      p.name?.toLowerCase().includes(q) || p.nip05?.toLowerCase().includes(q) || p.about?.toLowerCase().includes(q)
+    ).slice(0, 30);
+    setSearchResults(local);
+
+    // Then query relays for more profiles (fetch a batch and filter client-side)
+    setSearching(true);
+    pool.querySync(relays, { kinds: [0], limit: 500 }).then((evs) => {
+      const found = new Map();
+      // Add local results first
+      local.forEach((p) => found.set(p.pubkey, p));
+      // Parse and filter relay results
+      evs.forEach((ev) => {
+        if (found.has(ev.pubkey)) return;
+        const p = parseProfile(ev);
+        if (p && (p.name?.toLowerCase().includes(q) || p.nip05?.toLowerCase().includes(q) || p.about?.toLowerCase().includes(q))) {
+          found.set(p.pubkey, p);
+          setProfiles((prev) => {
+            const ex = prev[ev.pubkey];
+            if (ex && ex.created_at >= ev.created_at) return prev;
+            return { ...prev, [ev.pubkey]: p };
+          });
+        }
+      });
+      setSearchResults(Array.from(found.values()).slice(0, 30));
+      setSearching(false);
+    }).catch(() => setSearching(false));
+  }, [relays, profiles]);
+
+  // Debounced search trigger
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (!search.trim()) { setSearchResults([]); setSearching(false); return; }
+    // Immediate local filter
+    const q = search.toLowerCase();
+    const local = Object.values(profiles).filter((p) =>
+      p.name?.toLowerCase().includes(q) || p.nip05?.toLowerCase().includes(q)
+    ).slice(0, 20);
+    setSearchResults(local);
+    // Debounced relay query
+    searchTimerRef.current = setTimeout(() => doSearch(search), 400);
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [search, doSearch]);
 
   // ======================== DERIVED DATA ========================
   const myProfile = profiles[pk] || {};
@@ -714,21 +794,28 @@ export default function Twatter() {
         {view === "explore" && (
           <div style={{ flex: 1, padding: "16px 20px" }}>
             <div style={{ marginBottom: 20, position: "relative" }}>
-              <input className="input" placeholder="Search by name..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ paddingRight: 36 }}/>
+              <input className="input" placeholder="Search by name, npub, or nip-05..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ paddingRight: 36 }}/>
               <IcSearch size={14} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "var(--fg-mute)", pointerEvents: "none" }}/>
             </div>
-            {search && Object.values(profiles).filter((p) => p.name?.toLowerCase().includes(search.toLowerCase()) || p.nip05?.toLowerCase().includes(search.toLowerCase())).slice(0, 20).map((p) => (
-              <div key={p.pubkey} onClick={() => openProfile(p.pubkey)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: "1px solid var(--hairline)", cursor: "pointer" }}>
-                <Avatar profile={p} size={40} isPro={proProfiles.has(p.pubkey)}/>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span className="post-name">{p.name || shortPk(p.pubkey)}</span>
-                    {proProfiles.has(p.pubkey) && <ProBadge/>}
+            {search && (
+              <>
+                {searching && <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--fg-mute)", padding: "8px 0" }}>Searching relays...</div>}
+                {searchResults.length === 0 && !searching && <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--fg-mute)", padding: "8px 0" }}>No profiles found.</div>}
+                {searchResults.map((p) => (
+                  <div key={p.pubkey} onClick={() => { openProfile(p.pubkey); setSearch(""); }} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: "1px solid var(--hairline)", cursor: "pointer" }}>
+                    <Avatar profile={p} size={40} isPro={proProfiles.has(p.pubkey)}/>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span className="post-name">{p.name || shortPk(p.pubkey)}</span>
+                        {proProfiles.has(p.pubkey) && <ProBadge/>}
+                      </div>
+                      <div className="post-handle">@{p.nip05 || shortPk(p.pubkey)}</div>
+                      {p.about && <div style={{ fontSize: 12, color: "var(--fg-mute)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.about.slice(0, 80)}{p.about.length > 80 ? "..." : ""}</div>}
+                    </div>
                   </div>
-                  <div className="post-handle">@{p.nip05 || shortPk(p.pubkey)}</div>
-                </div>
-              </div>
-            ))}
+                ))}
+              </>
+            )}
             <div className="section-title" style={{ marginTop: 24 }}>Global Feed <span className="line"/></div>
             {explorePosts.map((e, i) => (
               <div key={e.id}>
