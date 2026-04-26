@@ -15,7 +15,7 @@ import * as nip04 from "nostr-tools/nip04";
 import * as nip19 from "nostr-tools/nip19";
 
 import "./styles.css";
-import { IcHome, IcGlobe, IcMail, IcUser, IcSettings, IcSearch, IcCompose, IcHeart, IcReply, IcZap, IcShare, IcImage, IcLink, IcSend, IcBack, IcClose, IcPlus, IcCheck, IcCopy, IcKey, IcClock, IcDot, IcStar, IcSignal, IcEye, IcEyeOff, IcFollow, IcFollowed, IcSliders, IcAt, IcTag } from "./icons.jsx";
+import { IcHome, IcGlobe, IcMail, IcUser, IcSettings, IcSearch, IcCompose, IcHeart, IcReply, IcZap, IcShare, IcImage, IcLink, IcSend, IcBack, IcClose, IcPlus, IcCheck, IcCopy, IcKey, IcClock, IcDot, IcStar, IcSignal, IcEye, IcEyeOff, IcFollow, IcFollowed, IcSliders, IcAt, IcTag, IcChevron } from "./icons.jsx";
 import { Avatar, ProBadge, PostImage, Switch, Dial, PostBody, PostMeta, Tag, DaySeparator } from "./atoms.jsx";
 import { FeedKitchen, defaultKitchenState, countDialDiff } from "./feedKitchen.jsx";
 import { TweaksPanel, defaultTweaks } from "./tweaks.jsx";
@@ -31,7 +31,7 @@ const DEFAULT_RELAYS = [
 ];
 const FREE_POST_LIMIT = 300;
 const PRO_POST_LIMIT = 2000;
-const FETCH_LIMIT = 100;
+const FETCH_LIMIT = 500;
 const PAYMENT_SERVER = import.meta.env.VITE_PAYMENT_SERVER || "http://localhost:7779";
 const ZAP_PRESETS = [21, 100, 500, 1000, 2100, 5000];
 
@@ -460,6 +460,10 @@ export default function Twatter() {
   const [searching, setSearching] = useState(false);
   const searchTimerRef = useRef(null);
 
+  // --- Legal ---
+  const [showTerms, setShowTerms] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
+
   // ======================== LOAD KEYS ========================
   useEffect(() => {
     (async () => {
@@ -495,7 +499,7 @@ export default function Twatter() {
 
     const handlePost = (event) => {
       if (seenPosts.has(event.id)) return; seenPosts.add(event.id);
-      setPosts((prev) => { if (prev.some((p) => p.id === event.id)) return prev; return [...prev, event].sort((a, b) => b.created_at - a.created_at).slice(0, 500); });
+      setPosts((prev) => { if (prev.some((p) => p.id === event.id)) return prev; return [...prev, event].sort((a, b) => b.created_at - a.created_at).slice(0, 1000); });
       if (!seenProfiles.has(event.pubkey)) fetchProfile(event.pubkey);
     };
     const handleProfile = (event) => {
@@ -657,7 +661,7 @@ export default function Twatter() {
   // ======================== DERIVED DATA ========================
   const myProfile = profiles[pk] || {};
   const feedPosts = useMemo(() => posts.filter((p) => contacts.includes(p.pubkey) || p.pubkey === pk), [posts, contacts, pk]);
-  const explorePosts = useMemo(() => [...posts].slice(0, 200), [posts]);
+  const explorePosts = useMemo(() => posts.filter((p) => !p.tags?.some((t) => t[0] === "e")).slice(0, 300), [posts]);
   const getProfilePosts = useCallback((pubkey) => posts.filter((p) => p.pubkey === pubkey), [posts]);
   const getReplies = useCallback((postId) => posts.filter((p) => p.tags?.some((t) => t[0] === "e" && t[1] === postId)), [posts]);
   const dmConversations = useMemo(() => Object.entries(dmMessages).map(([pubkey, msgs]) => ({ pubkey, messages: msgs, lastMessage: msgs[msgs.length - 1], profile: profiles[pubkey] })).sort((a, b) => (b.lastMessage?.ts || 0) - (a.lastMessage?.ts || 0)), [dmMessages, profiles]);
@@ -816,7 +820,7 @@ export default function Twatter() {
                 ))}
               </>
             )}
-            <div className="section-title" style={{ marginTop: 24 }}>Global Feed <span className="line"/></div>
+            <div className="section-title" style={{ marginTop: 24 }}>Global Feed <span style={{ marginLeft: 6, color: "var(--fg-mute)" }}>({explorePosts.length})</span> <span className="line"/></div>
             {explorePosts.map((e, i) => (
               <div key={e.id}>
                 {i > 0 && explorePosts[i - 1].created_at !== e.created_at && Math.floor(explorePosts[i - 1].created_at / 86400) !== Math.floor(e.created_at / 86400) && <DaySeparator ts={e.created_at}/>}
@@ -965,6 +969,122 @@ export default function Twatter() {
               <button onClick={() => { const r = newRelay.trim(); if (r.startsWith("wss://") && !relays.includes(r)) { setRelays((prev) => [...prev, r]); setNewRelay(""); } }} className="btn primary sm">ADD</button>
             </div>
             <button onClick={connectAndSubscribe} className="btn" style={{ width: "100%", borderColor: "var(--accent)", color: "var(--accent)" }}>RECONNECT TO RELAYS</button>
+
+            <div className="section-title" style={{ marginTop: 24 }}>Legal <span className="line"/></div>
+
+            {/* Terms of Service */}
+            <button onClick={() => setShowTerms(!showTerms)} className="btn ghost" style={{ width: "100%", justifyContent: "space-between", display: "flex", padding: "12px", marginBottom: 4 }}>
+              <span>Terms of Service</span>
+              <IcChevron size={14} style={{ transform: showTerms ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .2s" }}/>
+            </button>
+            {showTerms && (
+              <div style={{ background: "var(--surface-2)", border: "1px solid var(--hairline)", borderRadius: 10, padding: "16px 18px", marginBottom: 12, fontSize: 13, lineHeight: 1.7, color: "var(--fg-dim)" }}>
+                <div style={{ fontFamily: "var(--mono)", fontSize: 11, fontWeight: 700, color: "var(--fg)", marginBottom: 12, letterSpacing: ".04em" }}>TWATTER TERMS OF SERVICE</div>
+                <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--fg-mute)", marginBottom: 16 }}>Last updated: April 2026</div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", marginBottom: 6 }}>1. WHAT TWATTER IS</div>
+                  <div>Twatter is an open-source client for the Nostr protocol. It provides an interface for reading and publishing notes on Nostr relays. Twatter does not own, operate, or control the Nostr network itself. Your posts are published to decentralized relays and cannot be deleted by Twatter.</div>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", marginBottom: 6 }}>2. YOUR KEYS, YOUR RESPONSIBILITY</div>
+                  <div>Your identity on Nostr is your cryptographic key pair. Twatter generates and stores your private key locally on your device. We never transmit, collect, or have access to your private key. If you lose your private key, your account cannot be recovered by anyone — including us. Back up your keys.</div>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", marginBottom: 6 }}>3. NO ALGORITHM</div>
+                  <div>Twatter displays content in strictly chronological order. We do not use algorithms to rank, promote, suppress, or curate content. What you see is determined solely by who you follow and the relays you connect to.</div>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", marginBottom: 6 }}>4. USER CONDUCT</div>
+                  <div>You are solely responsible for the content you publish. You agree not to use Twatter to publish content that is illegal under applicable law, including but not limited to: child sexual abuse material, credible threats of violence, or content that violates intellectual property rights. Twatter reserves the right to block access to our relay for users who violate these terms.</div>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", marginBottom: 6 }}>5. PRO SUBSCRIPTIONS & PAYMENTS</div>
+                  <div>Twatter Pro is an optional paid tier. Payments are made via the Bitcoin Lightning Network. All payments are final and non-refundable — this is inherent to Lightning transactions. Pro status is tied to your public key and lasts for the stated duration (currently 30 days per payment). Twatter is not a financial service and does not hold or custody funds.</div>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", marginBottom: 6 }}>6. ZAPS (LIGHTNING TIPS)</div>
+                  <div>Zaps are voluntary peer-to-peer Lightning payments between users, facilitated through the NIP-57 protocol. Twatter does not process, custody, or take a cut of zaps. Zap transactions are between the sender's wallet and the recipient's Lightning address. Twatter provides the interface only.</div>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", marginBottom: 6 }}>7. CONTENT & LIABILITY</div>
+                  <div>Content on Twatter comes from the Nostr network and is generated entirely by users. Twatter does not endorse, verify, or take responsibility for any user-generated content. The service is provided "as is" without warranties of any kind. Twatter is not liable for any damages arising from your use of the service, the Nostr protocol, or Lightning Network transactions.</div>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", marginBottom: 6 }}>8. RELAY SERVICES</div>
+                  <div>Twatter operates an optional relay (relay.twatter.xyz). We reserve the right to limit, restrict, or remove access to our relay at any time. You are free to use any Nostr relay. Removing you from our relay does not affect your ability to use Nostr through other relays.</div>
+                </div>
+
+                <div>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", marginBottom: 6 }}>9. CHANGES</div>
+                  <div>We may update these terms. Continued use of Twatter after changes constitutes acceptance. Major changes will be communicated through the app.</div>
+                </div>
+              </div>
+            )}
+
+            {/* Privacy Policy */}
+            <button onClick={() => setShowPrivacy(!showPrivacy)} className="btn ghost" style={{ width: "100%", justifyContent: "space-between", display: "flex", padding: "12px", marginBottom: 4 }}>
+              <span>Privacy Policy</span>
+              <IcChevron size={14} style={{ transform: showPrivacy ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .2s" }}/>
+            </button>
+            {showPrivacy && (
+              <div style={{ background: "var(--surface-2)", border: "1px solid var(--hairline)", borderRadius: 10, padding: "16px 18px", marginBottom: 12, fontSize: 13, lineHeight: 1.7, color: "var(--fg-dim)" }}>
+                <div style={{ fontFamily: "var(--mono)", fontSize: 11, fontWeight: 700, color: "var(--fg)", marginBottom: 12, letterSpacing: ".04em" }}>TWATTER PRIVACY POLICY</div>
+                <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--fg-mute)", marginBottom: 16 }}>Last updated: April 2026</div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", marginBottom: 6 }}>WHAT WE COLLECT</div>
+                  <div>Almost nothing. Twatter is designed to minimize data collection. Here is what we do and do not have access to:</div>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", marginBottom: 6 }}>YOUR PRIVATE KEY</div>
+                  <div>Stored only on your device (browser localStorage or Electron app storage). Never transmitted to our servers. We cannot access, recover, or reset it.</div>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", marginBottom: 6 }}>YOUR PUBLIC KEY</div>
+                  <div>This is public by design in the Nostr protocol. It is broadcast to relays when you publish content. Our payment server stores your public key if you purchase Twatter Pro, solely to verify your subscription status.</div>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", marginBottom: 6 }}>YOUR POSTS & PROFILE</div>
+                  <div>Published to Nostr relays you connect to. This is public data on a decentralized network. Twatter does not control this data after publication. You cannot fully delete posts once published to third-party relays — this is a property of the Nostr protocol, not a Twatter limitation.</div>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", marginBottom: 6 }}>DIRECT MESSAGES</div>
+                  <div>DMs are encrypted using NIP-04 (shared secret encryption between sender and recipient). Relay operators can see that a DM was sent and between which public keys, but cannot read the message content. Twatter decrypts messages locally on your device only.</div>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", marginBottom: 6 }}>PAYMENT DATA</div>
+                  <div>If you purchase Twatter Pro, our payment server stores: your public key, the Lightning invoice, payment status, and timestamp. We do not store Lightning wallet addresses, balances, or transaction history beyond the Pro purchase. Zaps between users do not touch our servers.</div>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", marginBottom: 6 }}>ANALYTICS & TRACKING</div>
+                  <div>Twatter does not use analytics, tracking pixels, cookies, fingerprinting, or any third-party tracking services. We do not track what you read, who you follow, or how you use the app.</div>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", marginBottom: 6 }}>THIRD-PARTY RELAYS</div>
+                  <div>Twatter connects to Nostr relays operated by third parties (e.g., relay.damus.io, nos.lol). These relay operators have their own privacy practices. Twatter is not responsible for data handling by third-party relay operators. You can add or remove relays at any time in Settings.</div>
+                </div>
+
+                <div>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", marginBottom: 6 }}>CONTACT</div>
+                  <div>For privacy questions, reach us on Nostr or at the contact address listed on our relay.</div>
+                </div>
+              </div>
+            )}
 
             <div className="section-title" style={{ marginTop: 24 }}>Danger Zone <span className="line"/></div>
             <button onClick={logout} className="btn" style={{ borderColor: "var(--red)", color: "var(--red)", marginTop: 8 }}>LOG OUT & CLEAR DATA</button>
