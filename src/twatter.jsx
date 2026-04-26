@@ -88,11 +88,7 @@ async function createZapInvoice(lnurlData, amountSats, zapRequestEvent) {
   return data.pr;
 }
 
-async function payWithWebLN(invoice) {
-  if (!window.webln) throw new Error("No Lightning wallet found.\nInstall the Alby browser extension\nto send Lightning payments.");
-  await window.webln.enable();
-  return window.webln.sendPayment(invoice);
-}
+// payWithWebLN removed — ZapModal now handles WebLN inline with manual invoice fallback
 
 // ======================== PRO STATUS ========================
 async function checkProStatus(pubkey) {
@@ -128,6 +124,8 @@ const ZapModal = ({ targetProfile, targetEvent, sk, pk, relays, onClose }) => {
   const [custom, setCustom] = useState("");
   const [status, setStatus] = useState("idle"); // idle | fetching | invoice | paying | success | error
   const [error, setError] = useState("");
+  const [invoiceStr, setInvoiceStr] = useState("");
+  const [invoiceCopied, setInvoiceCopied] = useState(false);
   const finalAmount = custom ? parseInt(custom) || 0 : amount;
 
   const doZap = async () => {
@@ -137,49 +135,111 @@ const ZapModal = ({ targetProfile, targetEvent, sk, pk, relays, onClose }) => {
     try {
       setStatus("fetching");
       setError("");
+      setInvoiceStr("");
+      setInvoiceCopied(false);
       const lnurlData = await fetchLnurlData(lud16);
-      setStatus("invoice");
       // Build NIP-57 zap request
       const zapTags = [["relays", ...relays], ["amount", String(finalAmount * 1000)], ["p", targetProfile.pubkey]];
       if (targetEvent) zapTags.push(["e", targetEvent.id]);
       const zapRequest = makeEvent(9734, "", zapTags, sk);
       const invoice = await createZapInvoice(lnurlData, finalAmount, lnurlData.allowsNostr ? zapRequest : null);
-      setStatus("paying");
-      await payWithWebLN(invoice);
-      setStatus("success");
-      setTimeout(onClose, 1800);
+      setInvoiceStr(invoice);
+      setStatus("invoice");
+      // Try WebLN auto-pay if available
+      if (window.webln) {
+        try {
+          setStatus("paying");
+          await window.webln.enable();
+          await window.webln.sendPayment(invoice);
+          setStatus("success");
+          setTimeout(onClose, 1800);
+          return;
+        } catch (e) {
+          // WebLN failed or user rejected — fall back to manual invoice
+          setStatus("invoice");
+        }
+      }
+      // No WebLN or it failed — show invoice for manual payment
     } catch (e) {
-      setError(e.message || "Payment failed");
+      setError(e.message || "Failed to create invoice");
       setStatus("error");
     }
   };
 
-  const statusMsg = { fetching: "Getting Lightning info...", invoice: "Generating invoice...", paying: "Waiting for payment...", success: "⚡ Zapped!", error: "" };
+  const copyInvoice = () => {
+    navigator.clipboard.writeText(invoiceStr).then(() => { setInvoiceCopied(true); setTimeout(() => setInvoiceCopied(false), 2000); }).catch(() => {});
+  };
+
+  const openInWallet = () => {
+    window.open(`lightning:${invoiceStr}`, "_blank");
+  };
+
+  const statusMsg = { fetching: "Getting Lightning info...", paying: "Waiting for wallet...", success: "⚡ Zapped!", error: "" };
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div style={{ background: "var(--surface)", border: "1px solid var(--hairline-2)", borderRadius: 14, padding: 24, width: 320, maxWidth: "90vw" }}>
+      <div style={{ background: "var(--surface)", border: "1px solid var(--hairline-2)", borderRadius: 14, padding: 24, width: 340, maxWidth: "90vw" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <span style={{ fontFamily: "var(--mono)", fontSize: 13, fontWeight: 700, color: "var(--saffron)" }}>⚡ ZAP {targetProfile?.name || shortPk(targetProfile?.pubkey)}</span>
           <button onClick={onClose} className="iconbtn" style={{ color: "var(--fg-mute)" }}><IcClose/></button>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 12 }}>
-          {ZAP_PRESETS.map((n) => (
-            <button key={n} className="btn sm" onClick={() => { setAmount(n); setCustom(""); }} style={{ background: amount === n && !custom ? "var(--surface-3)" : "transparent", borderColor: amount === n && !custom ? "var(--saffron)" : "var(--hairline-2)", color: amount === n && !custom ? "var(--saffron)" : "var(--fg-dim)" }}>
-              ⚡ {formatSats(n)}
-            </button>
-          ))}
-        </div>
-        <input className="input mono" style={{ marginBottom: 14 }} type="number" placeholder="Custom amount (sats)" value={custom} onChange={(e) => setCustom(e.target.value)} min="1"/>
-        {status !== "idle" && status !== "error" && (
-          <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: status === "success" ? "var(--green)" : "var(--saffron)", textAlign: "center", marginBottom: 12, padding: "8px", background: "var(--surface-2)", borderRadius: 8 }}>{statusMsg[status]}</div>
+
+        {/* Amount Selection (show when no invoice yet) */}
+        {status !== "invoice" && status !== "success" && (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 12 }}>
+              {ZAP_PRESETS.map((n) => (
+                <button key={n} className="btn sm" onClick={() => { setAmount(n); setCustom(""); }} style={{ background: amount === n && !custom ? "var(--surface-3)" : "transparent", borderColor: amount === n && !custom ? "var(--saffron)" : "var(--hairline-2)", color: amount === n && !custom ? "var(--saffron)" : "var(--fg-dim)" }}>
+                  ⚡ {formatSats(n)}
+                </button>
+              ))}
+            </div>
+            <input className="input mono" style={{ marginBottom: 14 }} type="number" placeholder="Custom amount (sats)" value={custom} onChange={(e) => setCustom(e.target.value)} min="1"/>
+          </>
+        )}
+
+        {/* Status messages */}
+        {(status === "fetching" || status === "paying") && (
+          <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--saffron)", textAlign: "center", marginBottom: 12, padding: "8px", background: "var(--surface-2)", borderRadius: 8 }}>{statusMsg[status]}</div>
+        )}
+        {status === "success" && (
+          <div style={{ fontFamily: "var(--mono)", fontSize: 14, color: "var(--green)", textAlign: "center", padding: "16px", background: "var(--surface-2)", borderRadius: 8 }}>⚡ Zapped {formatSats(finalAmount)} sats!</div>
         )}
         {status === "error" && <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--red)", marginBottom: 12, lineHeight: 1.6, whiteSpace: "pre-line" }}>{error}</div>}
-        {status !== "success" && (
-          <button onClick={doZap} disabled={["fetching","invoice","paying"].includes(status)} className="btn primary" style={{ width: "100%", opacity: ["fetching","invoice","paying"].includes(status) ? 0.5 : 1 }}>
-            {["fetching","invoice","paying"].includes(status) ? "..." : `⚡ ZAP ${formatSats(finalAmount)} SATS`}
+
+        {/* Invoice display — the core payment UI */}
+        {status === "invoice" && invoiceStr && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--fg-faint)", marginBottom: 8, textAlign: "center" }}>Pay {formatSats(finalAmount)} sats with any Lightning wallet:</div>
+            <div style={{ background: "var(--surface-2)", border: "1px solid var(--hairline)", borderRadius: 8, padding: 12, wordBreak: "break-all", fontFamily: "var(--mono)", fontSize: 10, color: "var(--fg-dim)", maxHeight: 80, overflowY: "auto", lineHeight: 1.5, cursor: "pointer" }} onClick={copyInvoice} title="Click to copy">
+              {invoiceStr}
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button onClick={copyInvoice} className="btn" style={{ flex: 1, borderColor: invoiceCopied ? "var(--green)" : "var(--saffron)", color: invoiceCopied ? "var(--green)" : "var(--saffron)" }}>
+                {invoiceCopied ? "COPIED!" : "COPY INVOICE"}
+              </button>
+              <button onClick={openInWallet} className="btn" style={{ flex: 1, borderColor: "var(--saffron)", color: "var(--saffron)" }}>
+                OPEN WALLET
+              </button>
+            </div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 9, color: "var(--fg-mute)", textAlign: "center", marginTop: 8 }}>Copy this invoice and paste it into your Lightning wallet to pay, or tap "Open Wallet" to launch your default wallet app.</div>
+          </div>
+        )}
+
+        {/* Main action button */}
+        {status !== "success" && status !== "invoice" && (
+          <button onClick={doZap} disabled={["fetching","paying"].includes(status)} className="btn primary" style={{ width: "100%", opacity: ["fetching","paying"].includes(status) ? 0.5 : 1 }}>
+            {["fetching","paying"].includes(status) ? "..." : `⚡ ZAP ${formatSats(finalAmount)} SATS`}
           </button>
         )}
+
+        {/* Back to amount selection from invoice view */}
+        {status === "invoice" && (
+          <button onClick={() => { setStatus("idle"); setInvoiceStr(""); setInvoiceCopied(false); }} className="btn ghost" style={{ width: "100%", marginTop: 8 }}>
+            CHANGE AMOUNT
+          </button>
+        )}
+
         {!targetProfile?.lud16 && status === "idle" && (
           <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--fg-mute)", marginTop: 8, textAlign: "center" }}>This user hasn't added a Lightning address to their profile.</div>
         )}
