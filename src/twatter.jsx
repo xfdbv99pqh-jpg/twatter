@@ -14,13 +14,20 @@ import { SimplePool } from "nostr-tools/pool";
 import * as nip04 from "nostr-tools/nip04";
 import * as nip19 from "nostr-tools/nip19";
 
+import "./styles.css";
+import { IcHome, IcGlobe, IcMail, IcUser, IcSettings, IcSearch, IcCompose, IcHeart, IcReply, IcZap, IcShare, IcImage, IcLink, IcSend, IcBack, IcClose, IcPlus, IcCheck, IcCopy, IcKey, IcClock, IcDot, IcStar, IcSignal, IcEye, IcEyeOff, IcFollow, IcFollowed, IcSliders, IcAt, IcTag } from "./icons.jsx";
+import { Avatar, ProBadge, PostImage, Switch, Dial, PostBody, PostMeta, Tag, DaySeparator } from "./atoms.jsx";
+import { FeedKitchen, defaultKitchenState, countDialDiff } from "./feedKitchen.jsx";
+import { TweaksPanel, defaultTweaks } from "./tweaks.jsx";
+
 // ======================== CONFIG ========================
 const STORAGE_KEY = "twatter-nostr";
 const DEFAULT_RELAYS = [
   "wss://relay.twatter.xyz",
   "wss://relay.damus.io",
   "wss://nos.lol",
-  "wss://relay.nostr.band",
+  "wss://relay.primal.net",
+  "wss://purplepag.es",
 ];
 const FREE_POST_LIMIT = 300;
 const PRO_POST_LIMIT = 2000;
@@ -97,56 +104,20 @@ async function checkProStatus(pubkey) {
   } catch { return false; }
 }
 
-// ======================== STYLING ========================
-const font = `'Newsreader', 'Georgia', serif`;
-const mono = `'JetBrains Mono', 'SF Mono', monospace`;
-const sectionTitle = { fontFamily: mono, fontSize: 11, color: "#5a5550", textTransform: "uppercase", letterSpacing: "1.5px", padding: "16px 0 8px" };
-const inputStyle = { width: "100%", background: "#111110", border: "1px solid #1e1e1e", borderRadius: 8, padding: "10px 14px", color: "#e8e4df", fontFamily: font, fontSize: 14, outline: "none", boxSizing: "border-box" };
-const btnBase = { background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center" };
-
-// ======================== ICONS ========================
-const HeartIcon = ({ filled }) => (<svg width="16" height="16" viewBox="0 0 24 24" fill={filled?"#c4956a":"none"} stroke={filled?"#c4956a":"currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>);
-const ReplyIcon = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>);
-const SearchIcon = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>);
-const ImageIcon = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>);
-const LinkIcon = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>);
-const SendIcon = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>);
-const BackIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>);
-const XIcon = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>);
-const KeyIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78Zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>);
-const CopyIcon = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>);
-const ZapIcon = ({ filled }) => (<svg width="15" height="15" viewBox="0 0 24 24" fill={filled?"#f5c842":"none"} stroke={filled?"#f5c842":"currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>);
-const StarIcon = () => (<svg width="12" height="12" viewBox="0 0 24 24" fill="#c4956a" stroke="#c4956a" strokeWidth="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>);
-const CircleIcon = ({ color }) => (<svg width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill={color}/></svg>);
-
-// ======================== SMALL COMPONENTS ========================
-const PostImage = ({ src }) => { const [err, setErr] = useState(false); if (!src || err) return null; return (<div style={{ marginTop: 10, borderRadius: 10, overflow: "hidden", border: "1px solid #1e1e1e" }}><img src={src} alt="" onError={() => setErr(true)} style={{ width: "100%", display: "block", maxHeight: 400, objectFit: "cover" }}/></div>); };
-
-const ProBadge = () => (
-  <span style={{ display: "inline-flex", alignItems: "center", gap: 3, background: "#1e1a12", border: "1px solid #3a2f10", borderRadius: 4, padding: "1px 6px", fontFamily: mono, fontSize: 9, color: "#c4956a", letterSpacing: "0.5px" }}>
-    <StarIcon /> PRO
-  </span>
-);
-
-const Avatar = ({ profile, size = 38, onClick, isPro }) => {
-  const s = { width: size, height: size, borderRadius: "50%", background: "#1e1a16", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: mono, fontSize: size * 0.35, fontWeight: 700, color: "#c4956a", flexShrink: 0, border: isPro ? "2px solid #c4956a" : "1px solid #2a2520", cursor: onClick ? "pointer" : "default", overflow: "hidden" };
-  if (profile?.picture) return <div style={s} onClick={onClick}><img src={profile.picture} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.target.style.display = "none"; }}/></div>;
-  return <div style={s} onClick={onClick}>{(profile?.name || "?").slice(0, 2).toUpperCase()}</div>;
-};
-
+// ======================== IMAGE ATTACH ========================
 const ImageAttach = ({ image, onImage, onClear }) => {
   const fileRef = useRef(null);
   const [showUrl, setShowUrl] = useState(false);
   const [urlDraft, setUrlDraft] = useState("");
   const handleFile = async (e) => { const file = e.target.files?.[0]; if (!file || !file.type.startsWith("image/") || file.size > 5*1024*1024) return; const reader = new FileReader(); reader.onload = () => onImage(reader.result); reader.readAsDataURL(file); if (fileRef.current) fileRef.current.value = ""; };
   const handleUrl = () => { const url = urlDraft.trim(); if (url && /^https?:\/\//i.test(url)) { onImage(url); setUrlDraft(""); setShowUrl(false); } };
-  if (image) return (<div style={{ position: "relative", marginTop: 8, display: "inline-block" }}><img src={image} alt="" style={{ height: 60, borderRadius: 8, border: "1px solid #2a2520" }}/><button onClick={onClear} style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", background: "#d44", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}><XIcon/></button></div>);
+  if (image) return (<div style={{ position: "relative", marginTop: 8, display: "inline-block" }}><img src={image} alt="" style={{ height: 60, borderRadius: 8, border: "1px solid var(--hairline-2)" }}/><button onClick={onClear} style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", background: "var(--red)", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}><IcClose/></button></div>);
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
       <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }}/>
-      <button onClick={() => fileRef.current?.click()} title="Upload image" style={{ ...btnBase, color: "#5a5550" }}><ImageIcon/></button>
-      <button onClick={() => setShowUrl(!showUrl)} title="Image URL" style={{ ...btnBase, color: showUrl ? "#c4956a" : "#5a5550" }}><LinkIcon/></button>
-      {showUrl && (<div style={{ display: "flex", gap: 4, flex: 1 }}><input style={{ ...inputStyle, padding: "4px 8px", fontSize: 11, fontFamily: mono, borderRadius: 6 }} placeholder="https://..." value={urlDraft} onChange={(e) => setUrlDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleUrl()}/><button onClick={handleUrl} style={{ background: "#c4956a", border: "none", borderRadius: 6, padding: "4px 10px", fontFamily: mono, fontSize: 10, fontWeight: 700, color: "#0a0a0a", cursor: "pointer" }}>ADD</button></div>)}
+      <button onClick={() => fileRef.current?.click()} title="Upload image" className="iconbtn"><IcImage/></button>
+      <button onClick={() => setShowUrl(!showUrl)} title="Image URL" className="iconbtn" style={{ color: showUrl ? "var(--accent)" : "var(--fg-faint)" }}><IcLink/></button>
+      {showUrl && (<div style={{ display: "flex", gap: 4, flex: 1 }}><input className="input mono" placeholder="https://..." value={urlDraft} onChange={(e) => setUrlDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleUrl()} style={{ padding: "7px 10px", fontSize: 11 }}/><button onClick={handleUrl} className="btn primary sm">ADD</button></div>)}
     </div>
   );
 };
@@ -187,34 +158,30 @@ const ZapModal = ({ targetProfile, targetEvent, sk, pk, relays, onClose }) => {
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div style={{ background: "#111110", border: "1px solid #2a2520", borderRadius: 14, padding: 24, width: 320, maxWidth: "90vw" }}>
+      <div style={{ background: "var(--surface)", border: "1px solid var(--hairline-2)", borderRadius: 14, padding: 24, width: 320, maxWidth: "90vw" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <span style={{ fontFamily: mono, fontSize: 13, fontWeight: 700, color: "#f5c842" }}>⚡ ZAP {targetProfile?.name || shortPk(targetProfile?.pubkey)}</span>
-          <button onClick={onClose} style={{ ...btnBase, color: "#6b6460" }}><XIcon/></button>
+          <span style={{ fontFamily: "var(--mono)", fontSize: 13, fontWeight: 700, color: "var(--saffron)" }}>⚡ ZAP {targetProfile?.name || shortPk(targetProfile?.pubkey)}</span>
+          <button onClick={onClose} className="iconbtn" style={{ color: "var(--fg-mute)" }}><IcClose/></button>
         </div>
-        {/* Preset amounts */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 12 }}>
           {ZAP_PRESETS.map((n) => (
-            <button key={n} onClick={() => { setAmount(n); setCustom(""); }} style={{ background: amount === n && !custom ? "#1e1a12" : "#0f0f0e", border: `1px solid ${amount === n && !custom ? "#f5c842" : "#1e1e1e"}`, borderRadius: 8, padding: "8px 4px", fontFamily: mono, fontSize: 12, color: amount === n && !custom ? "#f5c842" : "#a09880", cursor: "pointer" }}>
+            <button key={n} className="btn sm" onClick={() => { setAmount(n); setCustom(""); }} style={{ background: amount === n && !custom ? "var(--surface-3)" : "transparent", borderColor: amount === n && !custom ? "var(--saffron)" : "var(--hairline-2)", color: amount === n && !custom ? "var(--saffron)" : "var(--fg-dim)" }}>
               ⚡ {formatSats(n)}
             </button>
           ))}
         </div>
-        {/* Custom amount */}
-        <input style={{ ...inputStyle, fontFamily: mono, fontSize: 13, marginBottom: 14, background: "#0f0f0e" }} type="number" placeholder="Custom amount (sats)" value={custom} onChange={(e) => setCustom(e.target.value)} min="1"/>
-        {/* Status / error */}
+        <input className="input mono" style={{ marginBottom: 14 }} type="number" placeholder="Custom amount (sats)" value={custom} onChange={(e) => setCustom(e.target.value)} min="1"/>
         {status !== "idle" && status !== "error" && (
-          <div style={{ fontFamily: mono, fontSize: 12, color: status === "success" ? "#4a9" : "#f5c842", textAlign: "center", marginBottom: 12, padding: "8px", background: "#0f0f0e", borderRadius: 8 }}>{statusMsg[status]}</div>
+          <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: status === "success" ? "var(--green)" : "var(--saffron)", textAlign: "center", marginBottom: 12, padding: "8px", background: "var(--surface-2)", borderRadius: 8 }}>{statusMsg[status]}</div>
         )}
-        {status === "error" && <div style={{ fontFamily: mono, fontSize: 11, color: "#d44", marginBottom: 12, lineHeight: 1.6, whiteSpace: "pre-line" }}>{error}</div>}
-        {/* Pay button */}
+        {status === "error" && <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--red)", marginBottom: 12, lineHeight: 1.6, whiteSpace: "pre-line" }}>{error}</div>}
         {status !== "success" && (
-          <button onClick={doZap} disabled={["fetching","invoice","paying"].includes(status)} style={{ width: "100%", background: ["fetching","invoice","paying"].includes(status) ? "#2a2520" : "#f5c842", color: ["fetching","invoice","paying"].includes(status) ? "#5a5550" : "#0a0a0a", border: "none", padding: "12px", borderRadius: 10, fontFamily: mono, fontSize: 13, fontWeight: 700, cursor: ["fetching","invoice","paying"].includes(status) ? "default" : "pointer" }}>
+          <button onClick={doZap} disabled={["fetching","invoice","paying"].includes(status)} className="btn primary" style={{ width: "100%", opacity: ["fetching","invoice","paying"].includes(status) ? 0.5 : 1 }}>
             {["fetching","invoice","paying"].includes(status) ? "..." : `⚡ ZAP ${formatSats(finalAmount)} SATS`}
           </button>
         )}
         {!targetProfile?.lud16 && status === "idle" && (
-          <div style={{ fontFamily: mono, fontSize: 10, color: "#5a5550", marginTop: 8, textAlign: "center" }}>This user hasn't added a Lightning address to their profile.</div>
+          <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--fg-mute)", marginTop: 8, textAlign: "center" }}>This user hasn't added a Lightning address to their profile.</div>
         )}
       </div>
     </div>
@@ -289,34 +256,31 @@ const ProModal = ({ pk, onClose, onProActivated }) => {
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={(e) => { if (e.target === e.currentTarget) { cleanup(); onClose(); } }}>
-      <div style={{ background: "#111110", border: "1px solid #2a2520", borderRadius: 14, padding: 28, width: 380, maxWidth: "90vw", maxHeight: "90vh", overflowY: "auto" }}>
-        {/* Close button */}
+      <div style={{ background: "var(--surface)", border: "1px solid var(--hairline-2)", borderRadius: 14, padding: 28, width: 380, maxWidth: "90vw", maxHeight: "90vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <button onClick={() => { cleanup(); onClose(); }} style={{ ...btnBase, color: "#6b6460" }}><XIcon/></button>
+          <button onClick={() => { cleanup(); onClose(); }} className="iconbtn" style={{ color: "var(--fg-mute)" }}><IcClose/></button>
         </div>
 
         {step === "info" && (
           <>
             <div style={{ textAlign: "center", marginBottom: 20 }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>⚡</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: "#f5f0eb", marginBottom: 6 }}>Twatter Pro</div>
-              <div style={{ fontFamily: mono, fontSize: 11, color: "#6b6460", lineHeight: 1.8 }}>Support decentralized social media.<br/>Pay with Bitcoin Lightning.</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: "var(--fg)", marginBottom: 6 }}>Twatter Pro</div>
+              <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--fg-mute)", lineHeight: 1.8 }}>Support decentralized social media.<br/>Pay with Bitcoin Lightning.</div>
             </div>
-            <div style={{ background: "#0f0f0e", borderRadius: 10, padding: 16, marginBottom: 20 }}>
+            <div style={{ background: "var(--surface-2)", borderRadius: 10, padding: 16, marginBottom: 20 }}>
               {[["⚡", "2,000 character posts (vs 300 free)"], ["🖼", "10GB media storage"], ["📊", "Creator analytics dashboard"], ["⏰", "Scheduled posts"], ["🔒", "Priority relay access"], ["✓", "Pro badge on your profile"]].map(([icon, text]) => (
-                <div key={text} style={{ display: "flex", gap: 10, alignItems: "center", padding: "6px 0", fontFamily: mono, fontSize: 12, color: "#d4d0cb" }}>
+                <div key={text} style={{ display: "flex", gap: 10, alignItems: "center", padding: "6px 0", fontFamily: "var(--mono)", fontSize: 12, color: "var(--fg-dim)" }}>
                   <span>{icon}</span><span>{text}</span>
                 </div>
               ))}
             </div>
             <div style={{ textAlign: "center", marginBottom: 16 }}>
-              <span style={{ fontFamily: mono, fontSize: 24, fontWeight: 700, color: "#f5c842" }}>21,000 sats</span>
-              <span style={{ fontFamily: mono, fontSize: 12, color: "#6b6460" }}> / 30 days</span>
+              <span style={{ fontFamily: "var(--mono)", fontSize: 24, fontWeight: 700, color: "var(--saffron)" }}>21,000 sats</span>
+              <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--fg-mute)" }}> / 30 days</span>
             </div>
-            <button onClick={createInvoice} style={{ width: "100%", background: "#f5c842", color: "#0a0a0a", border: "none", padding: "13px", borderRadius: 10, fontFamily: mono, fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 10 }}>
-              ⚡ PAY WITH LIGHTNING
-            </button>
-            <div style={{ textAlign: "center", fontFamily: mono, fontSize: 10, color: "#4a4540", lineHeight: 1.6 }}>
+            <button onClick={createInvoice} className="btn primary" style={{ width: "100%", marginBottom: 10 }}>⚡ PAY WITH LIGHTNING</button>
+            <div style={{ textAlign: "center", fontFamily: "var(--mono)", fontSize: 10, color: "var(--fg-mute)", lineHeight: 1.6 }}>
               If you have the Alby extension, payment is instant.<br/>Otherwise you'll get an invoice to pay from any Lightning wallet.
             </div>
           </>
@@ -325,29 +289,28 @@ const ProModal = ({ pk, onClose, onProActivated }) => {
         {step === "invoice" && invoice && (
           <>
             <div style={{ textAlign: "center", marginBottom: 16 }}>
-              <div style={{ fontFamily: mono, fontSize: 13, fontWeight: 700, color: "#f5c842", marginBottom: 8 }}>⚡ Lightning Invoice</div>
-              <div style={{ fontFamily: mono, fontSize: 11, color: "#6b6460" }}>Scan or copy this invoice to pay</div>
+              <div style={{ fontFamily: "var(--mono)", fontSize: 13, fontWeight: 700, color: "var(--saffron)", marginBottom: 8 }}>⚡ Lightning Invoice</div>
+              <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--fg-mute)" }}>Scan or copy this invoice to pay</div>
             </div>
-            {/* QR-style display of the invoice (text representation) */}
             <div style={{ background: "#fff", borderRadius: 10, padding: 16, marginBottom: 16, textAlign: "center" }}>
-              <div style={{ fontFamily: mono, fontSize: 10, color: "#333", wordBreak: "break-all", lineHeight: 1.5, maxHeight: 120, overflowY: "auto" }}>
+              <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "#333", wordBreak: "break-all", lineHeight: 1.5, maxHeight: 120, overflowY: "auto" }}>
                 {invoice.bolt11}
               </div>
             </div>
-            <button onClick={copyInvoice} style={{ width: "100%", background: "#1e1a16", color: "#f5c842", border: "1px solid #3a3010", padding: "11px", borderRadius: 10, fontFamily: mono, fontSize: 12, fontWeight: 700, cursor: "pointer", marginBottom: 10 }}>
+            <button onClick={copyInvoice} className="btn" style={{ width: "100%", borderColor: "var(--accent)", color: "var(--accent)", marginBottom: 10 }}>
               {copied ? "COPIED!" : "COPY INVOICE"}
             </button>
-            <div style={{ textAlign: "center", fontFamily: mono, fontSize: 11, color: "#f5c842", padding: 8 }}>
-              <span style={{ display: "inline-block", animation: "pulse 1.5s infinite" }}>Waiting for payment...</span>
+            <div style={{ textAlign: "center", fontFamily: "var(--mono)", fontSize: 11, color: "var(--saffron)", padding: 8 }}>
+              <span className="pulse">Waiting for payment...</span>
             </div>
-            <div style={{ textAlign: "center", fontFamily: mono, fontSize: 10, color: "#4a4540", marginTop: 4 }}>
+            <div style={{ textAlign: "center", fontFamily: "var(--mono)", fontSize: 10, color: "var(--fg-mute)", marginTop: 4 }}>
               Pay {formatSats(invoice.amount_sats)} sats from any Lightning wallet.<br/>This page will update automatically.
             </div>
           </>
         )}
 
         {step === "invoice" && !invoice && (
-          <div style={{ textAlign: "center", padding: 40, fontFamily: mono, fontSize: 12, color: "#f5c842" }}>
+          <div style={{ textAlign: "center", padding: 40, fontFamily: "var(--mono)", fontSize: 12, color: "var(--saffron)" }}>
             Creating Lightning invoice...
           </div>
         )}
@@ -355,22 +318,22 @@ const ProModal = ({ pk, onClose, onProActivated }) => {
         {step === "success" && (
           <div style={{ textAlign: "center", padding: 20 }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>⚡</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: "#f5c842", marginBottom: 8 }}>You're Pro!</div>
-            <div style={{ fontFamily: mono, fontSize: 12, color: "#6b6460", lineHeight: 1.8 }}>Payment confirmed. Welcome to Twatter Pro.<br/>Enjoy your upgraded experience.</div>
-            <button onClick={() => { cleanup(); onClose(); }} style={{ marginTop: 20, background: "#f5c842", color: "#0a0a0a", border: "none", padding: "12px 32px", borderRadius: 10, fontFamily: mono, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>LET'S GO</button>
+            <div style={{ fontSize: 20, fontWeight: 700, color: "var(--accent)", marginBottom: 8 }}>You're Pro!</div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--fg-mute)", lineHeight: 1.8 }}>Payment confirmed. Welcome to Twatter Pro.<br/>Enjoy your upgraded experience.</div>
+            <button onClick={() => { cleanup(); onClose(); }} className="btn primary" style={{ marginTop: 20 }}>LET'S GO</button>
           </div>
         )}
 
         {step === "error" && (
           <div style={{ textAlign: "center", padding: 20 }}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>😕</div>
-            <div style={{ fontFamily: mono, fontSize: 12, color: "#d44", marginBottom: 12 }}>{error}</div>
-            <button onClick={() => setStep("info")} style={{ background: "#1e1a16", color: "#c4956a", border: "1px solid #2a2520", padding: "10px 24px", borderRadius: 10, fontFamily: mono, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>TRY AGAIN</button>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--red)", marginBottom: 12 }}>{error}</div>
+            <button onClick={() => setStep("info")} className="btn" style={{ borderColor: "var(--accent)", color: "var(--accent)" }}>TRY AGAIN</button>
           </div>
         )}
 
         {step !== "info" && step !== "success" && (
-          <button onClick={() => { cleanup(); onClose(); }} style={{ width: "100%", background: "none", border: "none", fontFamily: mono, fontSize: 12, color: "#5a5550", cursor: "pointer", padding: "6px", marginTop: 8 }}>Cancel</button>
+          <button onClick={() => { cleanup(); onClose(); }} className="btn ghost" style={{ width: "100%", marginTop: 8 }}>Cancel</button>
         )}
       </div>
     </div>
@@ -425,6 +388,11 @@ export default function Twatter() {
   const [newDmPk, setNewDmPk] = useState("");
   const [zapModal, setZapModal] = useState(null); // {profile, event} or null
   const chatEndRef = useRef(null);
+
+  // --- Kitchen & Tweaks ---
+  const [kitchen, setKitchen] = useState(defaultKitchenState());
+  const [tweaks, setTweaks] = useState(defaultTweaks());
+  const [showTweaks, setShowTweaks] = useState(false);
 
   // ======================== LOAD KEYS ========================
   useEffect(() => {
@@ -566,240 +534,302 @@ export default function Twatter() {
     const authorIsPro = proProfiles.has(event.pubkey) || (event.pubkey === pk && isPro);
     if (isReply) return null;
     return (
-      <div style={{ padding: "18px 0", borderBottom: "1px solid #141414" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-          <Avatar profile={profile} size={38} isPro={authorIsPro} onClick={() => openProfile(event.pubkey)}/>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontWeight: 600, fontSize: 15, color: "#f0ece7", cursor: "pointer" }} onClick={() => openProfile(event.pubkey)}>{profile?.name || shortPk(event.pubkey)}</span>
-              {authorIsPro && <ProBadge/>}
-            </div>
-            <div style={{ fontFamily: mono, fontSize: 12, color: "#6b6460" }}>{profile?.nip05 || shortPk(event.pubkey)}</div>
-          </div>
-          <span style={{ fontFamily: mono, fontSize: 11, color: "#4a4540", marginLeft: "auto" }}>{timeAgo(event.created_at)}</span>
+      <div className="post">
+        <div className="post-header">
+          <Avatar profile={profile} size={40} isPro={authorIsPro} onClick={() => openProfile(event.pubkey)}/>
+          <PostMeta profile={profile} ts={event.created_at} isPro={authorIsPro} onProfile={() => openProfile(event.pubkey)} timeAgo={timeAgo}/>
         </div>
-        {text && <div style={{ fontSize: 15, lineHeight: 1.65, color: "#d4d0cb", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{text}</div>}
+        {text && <PostBody text={text} density={tweaks.density}/>}
         <PostImage src={image}/>
-        <div style={{ display: "flex", gap: 20, marginTop: 12, alignItems: "center" }}>
-          <button onClick={() => toggleLike(event)} style={{ ...btnBase, fontFamily: mono, fontSize: 12, color: liked ? "#c4956a" : "#5a5550", gap: 5 }}><HeartIcon filled={liked}/> {likeCount || ""}</button>
-          <button onClick={() => { setReplyTo(replyTo === event.id ? null : event.id); setReplyDraft(""); }} style={{ ...btnBase, fontFamily: mono, fontSize: 12, color: replyTo === event.id ? "#c4956a" : "#5a5550", gap: 5 }}><ReplyIcon/> {replies.length || ""}</button>
-          <button onClick={() => setZapModal({ profile, event })} style={{ ...btnBase, fontFamily: mono, fontSize: 12, color: zapData ? "#f5c842" : "#5a5550", gap: 4 }}>
-            <ZapIcon filled={!!zapData}/>
-            {zapData ? <span style={{ fontSize: 11 }}>{formatSats(zapData.sats)} <span style={{ color: "#4a4540" }}>({zapData.count})</span></span> : ""}
+        <div className="post-actions">
+          <button onClick={() => toggleLike(event)} className="iconbtn" style={{ color: liked ? "var(--accent)" : "var(--fg-faint)" }}><IcHeart filled={liked} size={16}/> {likeCount ? <span style={{ fontSize: 11, marginLeft: 4 }}>{likeCount}</span> : ""}</button>
+          <button onClick={() => { setReplyTo(replyTo === event.id ? null : event.id); setReplyDraft(""); }} className="iconbtn" style={{ color: replyTo === event.id ? "var(--accent)" : "var(--fg-faint)" }}><IcReply size={16}/> {replies.length ? <span style={{ fontSize: 11, marginLeft: 4 }}>{replies.length}</span> : ""}</button>
+          <button onClick={() => setZapModal({ profile, event })} className="iconbtn" style={{ color: zapData ? "var(--saffron)" : "var(--fg-faint)" }}>
+            <IcZap filled={!!zapData} size={16}/>
+            {zapData && <span style={{ fontSize: 11, marginLeft: 4 }}>{formatSats(zapData.sats)} <span style={{ color: "var(--fg-mute)" }}>({zapData.count})</span></span>}
           </button>
         </div>
-        {replies.map((r) => { const rp = profiles[r.pubkey]; return (<div key={r.id} style={{ marginLeft: 48, padding: "10px 0 4px", borderLeft: "2px solid #1e1a16", paddingLeft: 14 }}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><Avatar profile={rp} size={26} onClick={() => openProfile(r.pubkey)}/><span style={{ fontWeight: 600, fontSize: 13, color: "#f0ece7", cursor: "pointer" }} onClick={() => openProfile(r.pubkey)}>{rp?.name || shortPk(r.pubkey)}</span><span style={{ fontFamily: mono, fontSize: 10, color: "#4a4540", marginLeft: "auto" }}>{timeAgo(r.created_at)}</span></div><div style={{ fontSize: 13, lineHeight: 1.55, color: "#d4d0cb", marginTop: 4, marginLeft: 34 }}>{r.content}</div></div>); })}
-        {replyTo === event.id && (<div style={{ marginTop: 8, marginLeft: 48 }}><input style={{ ...inputStyle, padding: "10px 12px", fontSize: 13, borderRadius: 8, background: "#0f0f0e" }} placeholder="Reply..." value={replyDraft} onChange={(e) => setReplyDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addReply(event)} autoFocus/></div>)}
+        {replies.map((r) => { const rp = profiles[r.pubkey]; return (<div key={r.id} className="thread-line"><div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}><Avatar profile={rp} size={28} onClick={() => openProfile(r.pubkey)}/><span className="post-name" style={{ cursor: "pointer" }} onClick={() => openProfile(r.pubkey)}>{rp?.name || shortPk(r.pubkey)}</span><span className="post-time">{timeAgo(r.created_at)}</span></div><PostBody text={r.content} density={tweaks.density}/></div>); })}
+        {replyTo === event.id && (<div style={{ marginTop: 8, marginLeft: 40 }}><input className="input" placeholder="Reply..." value={replyDraft} onChange={(e) => setReplyDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addReply(event)} autoFocus/></div>)}
       </div>
     );
   };
 
   // ======================== RENDER ========================
-  if (loading) return <div style={{ fontFamily: mono, color: "#5a5550", display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: "#0a0a0a" }}>Loading...</div>;
+  if (loading) return <div style={{ fontFamily: "var(--mono)", color: "var(--fg-mute)", display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: "var(--bg)" }}>Loading...</div>;
 
   if (!setupDone) return (
-    <div style={{ fontFamily: font, minHeight: "100vh", background: "#0a0a0a", color: "#e8e4df", maxWidth: 480, margin: "0 auto", padding: "0 20px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+    <div style={{ fontFamily: "var(--serif)", minHeight: "100vh", background: "var(--bg)", color: "var(--fg)", maxWidth: 480, margin: "0 auto", padding: "0 20px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
       <div style={{ textAlign: "center", marginBottom: 48 }}>
-        <div style={{ fontSize: 36, fontWeight: 700, fontFamily: mono, marginBottom: 8 }}>twat<span style={{ color: "#c4956a" }}>ter</span></div>
-        <div style={{ fontFamily: mono, fontSize: 12, color: "#6b6460", lineHeight: 1.8 }}>Decentralized. No servers. No algorithms.<br/>Your keys, your identity, your data.</div>
+        <div style={{ fontSize: 36, fontWeight: 700, fontFamily: "var(--mono)", marginBottom: 8 }}>twat<span style={{ color: "var(--accent)" }}>ter</span></div>
+        <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--fg-mute)", lineHeight: 1.8 }}>Decentralized. No servers. No algorithms.<br/>Your keys, your identity, your data.</div>
       </div>
-      <button onClick={generateKeys} style={{ width: "100%", background: "#c4956a", color: "#0a0a0a", border: "none", padding: "14px", borderRadius: 10, fontFamily: mono, fontSize: 14, fontWeight: 700, cursor: "pointer", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><KeyIcon/> GENERATE NEW IDENTITY</button>
-      <div style={{ textAlign: "center", fontFamily: mono, fontSize: 11, color: "#4a4540", margin: "20px 0 16px" }}>— or import existing Nostr key —</div>
-      <input style={{ ...inputStyle, marginBottom: 10, fontFamily: mono, fontSize: 12 }} placeholder="nsec1... or hex private key" value={importKey} onChange={(e) => setImportKey(e.target.value)}/>
-      <button onClick={importKeys} style={{ width: "100%", background: importKey.trim() ? "#1e1a16" : "#111110", color: importKey.trim() ? "#c4956a" : "#4a4540", border: "1px solid #2a2520", padding: "12px", borderRadius: 10, fontFamily: mono, fontSize: 13, fontWeight: 600, cursor: importKey.trim() ? "pointer" : "default" }}>IMPORT KEY</button>
+      <button onClick={generateKeys} className="btn primary" style={{ width: "100%", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "14px" }}><IcKey size={16}/> GENERATE NEW IDENTITY</button>
+      <div style={{ textAlign: "center", fontFamily: "var(--mono)", fontSize: 11, color: "var(--fg-mute)", margin: "20px 0 16px" }}>— or import existing Nostr key —</div>
+      <input className="input" style={{ marginBottom: 10, fontFamily: "var(--mono)" }} placeholder="nsec1... or hex private key" value={importKey} onChange={(e) => setImportKey(e.target.value)}/>
+      <button onClick={importKeys} className="btn" style={{ width: "100%", borderColor: importKey.trim() ? "var(--accent)" : "var(--hairline-2)", color: importKey.trim() ? "var(--accent)" : "var(--fg-dim)" }}>IMPORT KEY</button>
     </div>
   );
 
   return (
-    <div style={{ fontFamily: font, minHeight: "100vh", background: "#0a0a0a", color: "#e8e4df", maxWidth: 620, margin: "0 auto", padding: "0 16px" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
-
+    <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--fg)", display: "grid", gridTemplateColumns: tweaks.showKitchen && view === "feed" ? "220px 1fr 280px" : "220px 1fr", gridTemplateRows: "1fr" }}>
       {/* Modals */}
       {zapModal && <ZapModal targetProfile={zapModal.profile} targetEvent={zapModal.event} sk={sk} pk={pk} relays={relays} onClose={() => setZapModal(null)}/>}
       {showProModal && <ProModal pk={pk} onClose={() => setShowProModal(false)} onProActivated={() => setIsPro(true)}/>}
 
-      {/* Header */}
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 0 16px", borderBottom: "1px solid #1e1e1e", position: "sticky", top: 0, background: "#0a0a0a", zIndex: 100 }}>
-        <div style={{ display: "flex", alignItems: "center", cursor: "pointer", gap: 8 }} onClick={() => { setView("feed"); setProfileId(null); setActiveChat(null); }}>
-          <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.5px", color: "#f5f0eb", fontFamily: mono }}>twat<span style={{ color: "#c4956a" }}>ter</span></span>
-          <CircleIcon color={relayStatus === "connected" ? "#4a9" : relayStatus === "connecting" ? "#ca4" : "#a44"}/>
+      {/* LEFT SIDEBAR */}
+      <div style={{ background: "var(--surface)", borderRight: "1px solid var(--hairline)", display: "flex", flexDirection: "column", height: "100vh", overflowY: "auto", padding: "20px 16px" }}>
+        <div style={{ marginBottom: 32, cursor: "pointer" }} onClick={() => { setView("feed"); setProfileId(null); setActiveChat(null); }}>
+          <div style={{ fontFamily: "var(--serif)", fontSize: 22, fontWeight: 700, marginBottom: 4, letterSpacing: "-0.5px" }}>twat<span style={{ color: "var(--accent)" }}>ter</span></div>
+          <div className="eyebrow" style={{ fontSize: 8 }}>NO ALGORITHM · EST.2026</div>
         </div>
-        <div style={{ display: "flex", gap: 3 }}>
-          {[["feed","Feed"],["explore","Explore"],["dms","DMs"],["you","You"],["settings","⚙"]].map(([v,label]) => {
-            const isActive = v === "you" ? (view === "profile" && profileId === pk) : v === "settings" ? view === "settings" : view === v;
-            return (<button key={v} onClick={() => { if (v === "you") { setProfileId(pk); setView("profile"); } else if (v === "dms") { setView("dms"); setActiveChat(null); } else setView(v); }} style={{ background: isActive ? "#1a1714" : "transparent", color: isActive ? "#e8e4df" : "#6b6460", border: "none", padding: "6px 11px", borderRadius: 6, cursor: "pointer", fontFamily: mono, fontSize: 11, fontWeight: isActive ? 600 : 400 }}>{label}</button>);
+
+        <nav style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 32 }}>
+          {[["feed", <IcHome size={16}/>, "Feed"], ["explore", <IcGlobe size={16}/>, "Explore"], ["dms", <IcMail size={16}/>, "Messages"], ["profile", <IcUser size={16}/>, "Profile"], ["settings", <IcSettings size={16}/>, "Settings"]].map(([v, icon, label]) => {
+            const isActive = v === "profile" ? (view === "profile" && profileId === pk) : view === v;
+            return (<button key={v} onClick={() => { if (v === "profile") { setProfileId(pk); setView("profile"); } else if (v === "dms") { setView("dms"); setActiveChat(null); } else setView(v); }} className="btn ghost" style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: isActive ? "var(--surface-2)" : "transparent", borderColor: isActive ? "var(--accent)" : "var(--hairline-2)", color: isActive ? "var(--accent)" : "var(--fg-dim)", width: "100%", justifyContent: "flex-start" }}>{icon} <span style={{ fontSize: 13 }}>{label}</span></button>);
           })}
-          {!isPro && <button onClick={() => setShowProModal(true)} style={{ background: "linear-gradient(135deg,#2a1f0a,#1e1a12)", color: "#c4956a", border: "1px solid #3a2f10", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontFamily: mono, fontSize: 10, fontWeight: 700 }}>⭐ PRO</button>}
-        </div>
-      </header>
+        </nav>
 
-      {/* Feed */}
-      {view === "feed" && (
-        <div>
-          <div style={{ padding: "20px 0", borderBottom: "1px solid #1e1e1e" }}>
-            <textarea style={{ ...inputStyle, borderRadius: 10, padding: "14px 16px", fontSize: 15, lineHeight: 1.55, resize: "none", fontFamily: font }} rows={3} placeholder="What's on your mind?" value={draft} onChange={(e) => setDraft(e.target.value)}/>
-            <ImageAttach image={draftImage} onImage={setDraftImage} onClear={() => setDraftImage(null)}/>
-            <div style={{ overflow: "hidden", marginTop: 4 }}>
-              <span style={{ fontFamily: mono, fontSize: 11, color: draft.length > POST_LIMIT * 0.9 ? "#d44" : "#5a5550", float: "left", lineHeight: "32px" }}>{draft.length}/{POST_LIMIT}{!isPro && <span style={{ color: "#4a4540" }}> · <span style={{ cursor: "pointer", color: "#c4956a" }} onClick={() => setShowProModal(true)}>Pro = {PRO_POST_LIMIT}</span></span>}</span>
-              <button onClick={createPost} style={{ background: (draft.trim() || draftImage) && draft.length <= POST_LIMIT ? "#c4956a" : "#2a2520", color: (draft.trim() || draftImage) && draft.length <= POST_LIMIT ? "#0a0a0a" : "#5a5550", border: "none", padding: "8px 22px", borderRadius: 8, fontFamily: mono, fontSize: 12, fontWeight: 700, cursor: (draft.trim() || draftImage) && draft.length <= POST_LIMIT ? "pointer" : "default", marginTop: 6, float: "right" }}>POST</button>
-            </div>
-          </div>
-          <div style={sectionTitle}>Your Timeline — Chronological</div>
-          {feedPosts.length === 0 ? <div style={{ textAlign: "center", padding: "60px 20px", color: "#4a4540", fontFamily: mono, fontSize: 13, lineHeight: 1.8 }}>Your feed is empty.<br/>Follow people from Explore to see their posts.<br/>No algorithms. Just time.</div> : feedPosts.map((e) => <Post key={e.id} event={e}/>)}
-        </div>
-      )}
+        <button onClick={createPost} className="btn primary" style={{ width: "100%", marginBottom: 32, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px" }}><IcCompose size={16}/> Compose</button>
 
-      {/* Explore */}
-      {view === "explore" && (
-        <div>
-          <div style={{ padding: "16px 0", position: "relative" }}>
-            <input style={{ ...inputStyle, borderRadius: 10, padding: "12px 16px", fontFamily: mono, fontSize: 13 }} placeholder="Search by name..." value={search} onChange={(e) => setSearch(e.target.value)}/>
-            <span style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-40%)", color: "#5a5550" }}><SearchIcon/></span>
+        <div style={{ background: "var(--surface-2)", border: "1px solid var(--hairline)", borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 12 }}>
+          <div className="eyebrow" style={{ marginBottom: 6 }}>Relays</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+            <IcDot color={relayStatus === "connected" ? "var(--green)" : relayStatus === "connecting" ? "var(--saffron)" : "var(--red)"} size={6} />
+            <span style={{ color: "var(--fg-dim)" }}>{relayStatus === "connected" ? `${relays.length} relays` : "connecting..."}</span>
           </div>
-          {search && Object.values(profiles).filter((p) => p.name?.toLowerCase().includes(search.toLowerCase()) || p.nip05?.toLowerCase().includes(search.toLowerCase())).slice(0, 20).map((p) => (
-            <div key={p.pubkey} onClick={() => openProfile(p.pubkey)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: "1px solid #141414", cursor: "pointer" }}>
-              <Avatar profile={p} size={38} isPro={proProfiles.has(p.pubkey)}/>
-              <div><div style={{ fontWeight: 600, fontSize: 15, color: "#f0ece7", display: "flex", alignItems: "center", gap: 6 }}>{p.name || shortPk(p.pubkey)}{proProfiles.has(p.pubkey) && <ProBadge/>}</div><div style={{ fontFamily: mono, fontSize: 12, color: "#6b6460" }}>{p.nip05 || shortPk(p.pubkey)}</div></div>
-            </div>
-          ))}
-          <div style={sectionTitle}>Global Feed — Chronological</div>
-          {explorePosts.map((e) => <Post key={e.id} event={e}/>)}
+          <div style={{ color: "var(--fg-faint)", fontSize: 10 }}>{posts.length} posts seen</div>
         </div>
-      )}
 
-      {/* DMs - List */}
-      {view === "dms" && !activeChat && (
-        <div>
-          <div style={sectionTitle}>Messages</div>
-          <div style={{ display: "flex", gap: 8, padding: "8px 0 16px", borderBottom: "1px solid #1e1e1e" }}>
-            <input style={{ ...inputStyle, flex: 1, fontFamily: mono, fontSize: 12, borderRadius: 8 }} placeholder="npub1... or hex pubkey" value={newDmPk} onChange={(e) => setNewDmPk(e.target.value)} onKeyDown={(e) => e.key === "Enter" && startNewDM()}/>
-            <button onClick={startNewDM} style={{ background: newDmPk.trim() ? "#c4956a" : "#2a2520", color: newDmPk.trim() ? "#0a0a0a" : "#5a5550", border: "none", padding: "8px 16px", borderRadius: 8, fontFamily: mono, fontSize: 12, fontWeight: 700, cursor: newDmPk.trim() ? "pointer" : "default" }}>NEW</button>
-          </div>
-          {dmConversations.length === 0 ? <div style={{ textAlign: "center", padding: "60px 20px", color: "#4a4540", fontFamily: mono, fontSize: 13, lineHeight: 1.8 }}>No messages yet.<br/>Paste someone's npub above to start a conversation.</div> : dmConversations.map((c) => (
-            <div key={c.pubkey} onClick={() => setActiveChat(c.pubkey)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 0", borderBottom: "1px solid #141414", cursor: "pointer" }}>
-              <Avatar profile={c.profile} size={44}/>
-              <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 600, fontSize: 14, color: "#f0ece7", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.profile?.name || shortPk(c.pubkey)}</div><div style={{ fontFamily: mono, fontSize: 12, color: "#6b6460", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 2 }}>{c.lastMessage?.image && !c.lastMessage?.text ? "sent an image" : c.lastMessage?.text || ""}</div></div>
-              {c.lastMessage && <span style={{ fontFamily: mono, fontSize: 10, color: "#4a4540", flexShrink: 0 }}>{timeAgo(c.lastMessage.ts)}</span>}
-            </div>
-          ))}
+        {!isPro && (
+          <button onClick={() => setShowProModal(true)} className="btn" style={{ width: "100%", borderColor: "var(--accent)", color: "var(--accent)", marginBottom: 16 }}>⭐ UPGRADE PRO</button>
+        )}
+
+        <div style={{ marginTop: "auto", paddingTop: 16, borderTop: "1px solid var(--hairline)", fontSize: 11 }}>
+          <div className="eyebrow" style={{ marginBottom: 10 }}>YOU</div>
+          <Avatar profile={myProfile} size={36} onClick={() => { setProfileId(pk); setView("profile"); }} isPro={isPro}/>
+          <div style={{ marginTop: 8, fontSize: 13, fontWeight: 600, color: "var(--fg)" }}>{myProfile?.name || shortPk(pk)}</div>
+          {isPro && <ProBadge/>}
         </div>
-      )}
+      </div>
 
-      {/* DMs - Chat */}
-      {view === "dms" && activeChat && (
-        <div style={{ display: "flex", flexDirection: "column", minHeight: "calc(100vh - 80px)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 0 12px", borderBottom: "1px solid #1e1e1e", flexShrink: 0 }}>
-            <button onClick={() => setActiveChat(null)} style={{ ...btnBase, color: "#6b6460" }}><BackIcon/></button>
-            <Avatar profile={profiles[activeChat]} size={34} onClick={() => openProfile(activeChat)}/>
-            <div><div style={{ fontWeight: 600, fontSize: 14, color: "#f0ece7", cursor: "pointer" }} onClick={() => openProfile(activeChat)}>{profiles[activeChat]?.name || shortPk(activeChat)}</div><div style={{ fontFamily: mono, fontSize: 10, color: "#6b6460" }}>{shortPk(activeChat)}</div></div>
-          </div>
-          <div style={{ flex: 1, overflowY: "auto", padding: "12px 0" }}>
-            {(dmMessages[activeChat] || []).map((msg) => { const isMe = msg.from === pk; return (<div key={msg.id} style={{ display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start", marginBottom: 12 }}><div style={{ maxWidth: "75%", background: isMe ? "#1e1a16" : "#111110", border: `1px solid ${isMe?"#2a2520":"#1e1e1e"}`, borderRadius: 14, borderTopRightRadius: isMe ? 4 : 14, borderTopLeftRadius: isMe ? 14 : 4, padding: msg.text ? "10px 14px" : "4px", overflow: "hidden" }}>{msg.image && <img src={msg.image} alt="" style={{ maxWidth: "100%", maxHeight: 250, borderRadius: msg.text ? "8px 8px 0 0" : 10, display: "block", marginBottom: msg.text ? 6 : 0 }}/>}{msg.text && <div style={{ fontSize: 14, lineHeight: 1.5, color: "#d4d0cb", wordBreak: "break-word" }}>{msg.text}</div>}</div><span style={{ fontFamily: mono, fontSize: 9, color: "#4a4540", marginTop: 3, padding: "0 4px" }}>{timeAgo(msg.ts)}</span></div>); })}
-            <div ref={chatEndRef}/>
-          </div>
-          <div style={{ borderTop: "1px solid #1e1e1e", padding: "12px 0", flexShrink: 0 }}>
-            <ImageAttach image={dmImage} onImage={setDmImage} onClear={() => setDmImage(null)}/>
-            <div style={{ display: "flex", gap: 8, marginTop: dmImage ? 8 : 0, alignItems: "flex-end" }}>
-              <input style={{ ...inputStyle, flex: 1, borderRadius: 10, padding: "12px 14px" }} placeholder="Message..." value={dmDraft} onChange={(e) => setDmDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), sendDM())}/>
-              <button onClick={sendDM} style={{ background: (dmDraft.trim() || dmImage) ? "#c4956a" : "#2a2520", border: "none", width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: (dmDraft.trim() || dmImage) ? "pointer" : "default", flexShrink: 0 }}><SendIcon/></button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Profile */}
-      {view === "profile" && (() => {
-        const p = profiles[profileId] || {};
-        const isMe = profileId === pk;
-        const isFollowing = contacts.includes(profileId);
-        const pPosts = getProfilePosts(profileId);
-        const profileIsPro = proProfiles.has(profileId) || (profileId === pk && isPro);
-        return (
-          <div>
-            <div style={{ padding: "24px 0", borderBottom: "1px solid #1e1e1e", textAlign: "center" }}>
-              <Avatar profile={p} size={72} isPro={profileIsPro}/>
-              <div style={{ fontSize: 22, fontWeight: 700, marginTop: 12, color: "#f5f0eb", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>{p.name || shortPk(profileId)}{profileIsPro && <ProBadge/>}</div>
-              <div style={{ fontFamily: mono, fontSize: 12, color: "#6b6460", marginTop: 2 }}>{p.nip05 || shortPk(profileId)}</div>
-              {p.about && <div style={{ fontSize: 14, color: "#a09890", marginTop: 10, maxWidth: 400, margin: "10px auto 0", lineHeight: 1.5 }}>{p.about}</div>}
-              {p.lud16 && <div style={{ fontFamily: mono, fontSize: 11, color: "#f5c842", marginTop: 6 }}>⚡ {p.lud16}</div>}
-              <div style={{ display: "flex", justifyContent: "center", gap: 32, marginTop: 16 }}>
-                <div style={{ textAlign: "center" }}><div style={{ fontFamily: mono, fontSize: 18, fontWeight: 700, color: "#e8e4df" }}>{pPosts.length}</div><div style={{ fontFamily: mono, fontSize: 10, color: "#6b6460", textTransform: "uppercase", letterSpacing: "1px" }}>Posts</div></div>
+      {/* MAIN CONTENT */}
+      <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", height: "100vh" }}>
+        {/* Feed View */}
+        {view === "feed" && (
+          <div style={{ flex: 1, padding: "16px 20px" }}>
+            <div style={{ marginBottom: 24, paddingBottom: 12, borderBottom: "1px solid var(--hairline)" }}>
+              <div className="section-title" style={{ marginBottom: 12 }}>Following <span className="line"/></div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div className="chip saffron">LIVE</div>
+                <span className="eyebrow">Strictly chronological · no algorithm</span>
               </div>
-              <div onClick={() => copyToClipboard(nip19.npubEncode(profileId))} style={{ fontFamily: mono, fontSize: 10, color: "#4a4540", marginTop: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                {nip19.npubEncode(profileId).slice(0, 20)}... <CopyIcon/>{copied && <span style={{ color: "#c4956a", marginLeft: 4 }}>copied!</span>}
+            </div>
+
+            <div style={{ background: "var(--surface)", border: "1px solid var(--hairline-2)", borderRadius: 10, padding: 14, marginBottom: 20 }}>
+              <textarea className="input" placeholder="What's on your mind?" value={draft} onChange={(e) => setDraft(e.target.value)} style={{ resize: "none", minHeight: 80, marginBottom: 10 }}/>
+              <ImageAttach image={draftImage} onImage={setDraftImage} onClear={() => setDraftImage(null)}/>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
+                <span className="eyebrow" style={{ color: draft.length > POST_LIMIT * 0.9 ? "var(--red)" : "var(--fg-mute)" }}>{draft.length}/{POST_LIMIT}{!isPro && <span style={{ color: "var(--fg-mute)" }}> · <span style={{ cursor: "pointer", color: "var(--accent)" }} onClick={() => setShowProModal(true)}>Pro = {PRO_POST_LIMIT}</span></span>}</span>
+                <button onClick={createPost} className="btn primary sm" disabled={!(draft.trim() || draftImage) || draft.length > POST_LIMIT}>POST</button>
               </div>
-              {!isMe && (
-                <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 16 }}>
-                  <button onClick={() => toggleFollow(profileId)} style={{ background: isFollowing ? "transparent" : "#c4956a", color: isFollowing ? "#c4956a" : "#0a0a0a", border: isFollowing ? "1px solid #c4956a" : "none", padding: "8px 28px", borderRadius: 8, fontFamily: mono, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{isFollowing ? "FOLLOWING" : "FOLLOW"}</button>
-                  <button onClick={() => { setActiveChat(profileId); setView("dms"); }} style={{ background: "transparent", color: "#c4956a", border: "1px solid #c4956a", padding: "8px 20px", borderRadius: 8, fontFamily: mono, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>MESSAGE</button>
-                  {p.lud16 && <button onClick={() => setZapModal({ profile: p, event: null })} style={{ background: "#1e1a0a", color: "#f5c842", border: "1px solid #3a3010", padding: "8px 16px", borderRadius: 8, fontFamily: mono, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>⚡ ZAP</button>}
+            </div>
+
+            {feedPosts.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--fg-mute)", fontSize: 13, lineHeight: 1.8 }}>Your feed is empty.<br/>Follow people from Explore to see their posts.<br/>No algorithms. Just time.</div>
+            ) : (
+              feedPosts.map((e, i) => (
+                <div key={e.id}>
+                  {i > 0 && feedPosts[i - 1].created_at !== e.created_at && Math.floor(feedPosts[i - 1].created_at / 86400) !== Math.floor(e.created_at / 86400) && <DaySeparator ts={e.created_at}/>}
+                  <Post event={e}/>
                 </div>
-              )}
-              {isMe && !isPro && <button onClick={() => setShowProModal(true)} style={{ marginTop: 14, background: "linear-gradient(135deg,#2a1f0a,#1e1a12)", color: "#c4956a", border: "1px solid #3a2f10", padding: "8px 24px", borderRadius: 8, fontFamily: mono, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>⭐ Upgrade to Pro</button>}
-            </div>
-            <div style={sectionTitle}>{isMe ? "Your" : `${p.name || "Their"}'s`} Posts</div>
-            {pPosts.length === 0 ? <div style={{ textAlign: "center", padding: "40px", color: "#4a4540", fontFamily: mono, fontSize: 13 }}>No posts yet.</div> : pPosts.map((e) => <Post key={e.id} event={e}/>)}
+              ))
+            )}
           </div>
-        );
-      })()}
+        )}
 
-      {/* Settings */}
-      {view === "settings" && (
-        <div>
-          {/* Pro status banner */}
-          {isPro ? (
-            <div style={{ background: "linear-gradient(135deg,#1e1a12,#2a2010)", border: "1px solid #3a2f10", borderRadius: 10, padding: "14px 16px", marginTop: 16, marginBottom: 4, display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 20 }}>⭐</span>
-              <div><div style={{ fontFamily: mono, fontSize: 12, fontWeight: 700, color: "#c4956a" }}>Twatter Pro — Active</div><div style={{ fontFamily: mono, fontSize: 10, color: "#7a6840", marginTop: 2 }}>2,000 char posts · Priority relay · Creator tools</div></div>
+        {/* Explore View */}
+        {view === "explore" && (
+          <div style={{ flex: 1, padding: "16px 20px" }}>
+            <div style={{ marginBottom: 20, position: "relative" }}>
+              <input className="input" placeholder="Search by name..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ paddingRight: 36 }}/>
+              <IcSearch size={14} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "var(--fg-mute)", pointerEvents: "none" }}/>
             </div>
-          ) : (
-            <div onClick={() => setShowProModal(true)} style={{ background: "#111110", border: "1px dashed #2a2520", borderRadius: 10, padding: "14px 16px", marginTop: 16, marginBottom: 4, cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 20 }}>⭐</span>
-              <div><div style={{ fontFamily: mono, fontSize: 12, fontWeight: 700, color: "#c4956a" }}>Upgrade to Twatter Pro — ⚡ 21k sats</div><div style={{ fontFamily: mono, fontSize: 10, color: "#5a5550", marginTop: 2 }}>Longer posts · More storage · Priority relay access · Pay with Lightning</div></div>
-            </div>
-          )}
-
-          <div style={{ ...sectionTitle, paddingTop: 24 }}>Your Identity</div>
-          <div style={{ padding: "16px 0", borderBottom: "1px solid #1a1a1a" }}>
-            {[["Display Name", myProfile.name||"", (v) => updateProfile({...myProfile,name:v})], ["About", myProfile.about||"", (v) => updateProfile({...myProfile,about:v})], ["Picture URL", myProfile.picture||"", (v) => updateProfile({...myProfile,picture:v})], ["NIP-05", myProfile.nip05||"", (v) => updateProfile({...myProfile,nip05:v})], ["⚡ Lightning Address", myProfile.lud16||"", (v) => updateProfile({...myProfile,lud16:v})]].map(([label,val,onBlur]) => (
-              <div key={label}>
-                <div style={{ fontFamily: mono, fontSize: 11, color: label.includes("⚡") ? "#f5c842" : "#6b6460", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 8 }}>{label}</div>
-                <input style={{ ...inputStyle, marginBottom: 12 }} defaultValue={val} onBlur={(e) => { if (e.target.value !== val) onBlur(e.target.value); }} onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} placeholder={label.includes("⚡") ? "you@getalby.com" : ""}/>
+            {search && Object.values(profiles).filter((p) => p.name?.toLowerCase().includes(search.toLowerCase()) || p.nip05?.toLowerCase().includes(search.toLowerCase())).slice(0, 20).map((p) => (
+              <div key={p.pubkey} onClick={() => openProfile(p.pubkey)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: "1px solid var(--hairline)", cursor: "pointer" }}>
+                <Avatar profile={p} size={40} isPro={proProfiles.has(p.pubkey)}/>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span className="post-name">{p.name || shortPk(p.pubkey)}</span>
+                    {proProfiles.has(p.pubkey) && <ProBadge/>}
+                  </div>
+                  <div className="post-handle">@{p.nip05 || shortPk(p.pubkey)}</div>
+                </div>
               </div>
             ))}
-            <div style={{ fontFamily: mono, fontSize: 10, color: "#4a4540", lineHeight: 1.8 }}>⚡ Your Lightning address lets others tip you directly with Bitcoin.<br/>Get one free at <span style={{ color: "#c4956a" }}>getalby.com</span></div>
+            <div className="section-title" style={{ marginTop: 24 }}>Global Feed <span className="line"/></div>
+            {explorePosts.map((e, i) => (
+              <div key={e.id}>
+                {i > 0 && explorePosts[i - 1].created_at !== e.created_at && Math.floor(explorePosts[i - 1].created_at / 86400) !== Math.floor(e.created_at / 86400) && <DaySeparator ts={e.created_at}/>}
+                <Post event={e}/>
+              </div>
+            ))}
           </div>
+        )}
 
-          <div style={{ ...sectionTitle, marginTop: 24 }}>Your Keys</div>
-          <div style={{ padding: "16px 0", borderBottom: "1px solid #1a1a1a" }}>
-            <div style={{ fontFamily: mono, fontSize: 11, color: "#6b6460", marginBottom: 6 }}>PUBLIC KEY (share this)</div>
-            <div onClick={() => copyToClipboard(nip19.npubEncode(pk))} style={{ fontFamily: mono, fontSize: 11, color: "#c4956a", cursor: "pointer", padding: "8px 12px", background: "#111110", borderRadius: 6, border: "1px solid #1e1e1e", wordBreak: "break-all", display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>{nip19.npubEncode(pk)} <CopyIcon/></div>
-            <div style={{ fontFamily: mono, fontSize: 11, color: "#6b6460", marginBottom: 6 }}>PRIVATE KEY (keep secret!)</div>
-            <div onClick={() => copyToClipboard(nip19.nsecEncode(sk))} style={{ fontFamily: mono, fontSize: 11, color: "#d44", cursor: "pointer", padding: "8px 12px", background: "#1a1010", borderRadius: 6, border: "1px solid #2a1515", wordBreak: "break-all", display: "flex", alignItems: "center", gap: 6 }}>{nip19.nsecEncode(sk)} <CopyIcon/></div>
-          </div>
-
-          <div style={{ ...sectionTitle, marginTop: 24 }}>Relays</div>
-          <div style={{ padding: "16px 0", borderBottom: "1px solid #1a1a1a" }}>
-            {relays.map((r) => (<div key={r} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #141414" }}><span style={{ fontFamily: mono, fontSize: 12, color: "#d4d0cb" }}>{r}</span><button onClick={() => { if (relays.length > 1) setRelays((prev) => prev.filter((x) => x !== r)); }} style={{ ...btnBase, color: "#5a3030", fontFamily: mono, fontSize: 11 }}>remove</button></div>))}
-            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-              <input style={{ ...inputStyle, flex: 1, fontFamily: mono, fontSize: 12, borderRadius: 8 }} placeholder="wss://relay.example.com" value={newRelay} onChange={(e) => setNewRelay(e.target.value)}/>
-              <button onClick={() => { const r = newRelay.trim(); if (r.startsWith("wss://") && !relays.includes(r)) { setRelays((prev) => [...prev, r]); setNewRelay(""); } }} style={{ background: "#1e1a16", color: "#c4956a", border: "1px solid #2a2520", padding: "8px 16px", borderRadius: 8, fontFamily: mono, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>ADD</button>
+        {/* Messages List */}
+        {view === "dms" && !activeChat && (
+          <div style={{ flex: 1, padding: "16px 20px", display: "flex", flexDirection: "column" }}>
+            <div className="section-title" style={{ marginBottom: 12 }}>Direct Messages <span className="line"/></div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+              <input className="input" placeholder="npub1... or hex pubkey" value={newDmPk} onChange={(e) => setNewDmPk(e.target.value)} onKeyDown={(e) => e.key === "Enter" && startNewDM()}/>
+              <button onClick={startNewDM} className="btn primary sm">NEW</button>
             </div>
-            <button onClick={connectAndSubscribe} style={{ width: "100%", background: "#1e1a16", color: "#c4956a", border: "1px solid #2a2520", padding: "10px", borderRadius: 8, fontFamily: mono, fontSize: 12, fontWeight: 600, cursor: "pointer", marginTop: 12 }}>RECONNECT TO RELAYS</button>
+            {dmConversations.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--fg-mute)", fontSize: 13, lineHeight: 1.8 }}>No messages yet.<br/>Paste someone's npub above to start a conversation.</div>
+            ) : (
+              dmConversations.map((c) => (
+                <div key={c.pubkey} onClick={() => setActiveChat(c.pubkey)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 0", borderBottom: "1px solid var(--hairline)", cursor: "pointer" }}>
+                  <Avatar profile={c.profile} size={44}/>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="post-name">{c.profile?.name || shortPk(c.pubkey)}</div>
+                    <div className="post-handle" style={{ marginTop: 2 }}>{c.lastMessage?.image && !c.lastMessage?.text ? "sent an image" : c.lastMessage?.text || ""}</div>
+                  </div>
+                  {c.lastMessage && <span className="eyebrow" style={{ flexShrink: 0 }}>{timeAgo(c.lastMessage.ts)}</span>}
+                </div>
+              ))
+            )}
           </div>
+        )}
 
-          <div style={{ ...sectionTitle, marginTop: 24 }}>Danger Zone</div>
-          <div style={{ padding: "16px 0" }}>
-            <button onClick={logout} style={{ background: "#2a1515", color: "#d44", border: "1px solid #3a2020", padding: "8px 20px", borderRadius: 8, fontFamily: mono, fontSize: 12, cursor: "pointer" }}>LOG OUT & CLEAR DATA</button>
-            <div style={{ fontFamily: mono, fontSize: 10, color: "#5a3030", marginTop: 6 }}>Save your private key before logging out!</div>
+        {/* Messages Chat */}
+        {view === "dms" && activeChat && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "16px 20px", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 12, borderBottom: "1px solid var(--hairline)", flexShrink: 0 }}>
+              <button onClick={() => setActiveChat(null)} className="iconbtn"><IcBack size={16}/></button>
+              <Avatar profile={profiles[activeChat]} size={36} onClick={() => openProfile(activeChat)}/>
+              <div>
+                <div className="post-name" style={{ cursor: "pointer" }} onClick={() => openProfile(activeChat)}>{profiles[activeChat]?.name || shortPk(activeChat)}</div>
+                <div className="post-handle">{shortPk(activeChat)}</div>
+              </div>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto" }}>
+              {(dmMessages[activeChat] || []).map((msg) => { const isMe = msg.from === pk; return (<div key={msg.id} style={{ display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start", marginBottom: 12 }}><div style={{ maxWidth: "75%", background: isMe ? "var(--surface-3)" : "var(--surface)", border: `1px solid ${isMe?"var(--accent)":"var(--hairline-2)"}`, borderRadius: 14, borderTopRightRadius: isMe ? 4 : 14, borderTopLeftRadius: isMe ? 14 : 4, padding: msg.text ? "10px 14px" : "4px", overflow: "hidden" }}>{msg.image && <img src={msg.image} alt="" style={{ maxWidth: "100%", maxHeight: 250, borderRadius: msg.text ? "8px 8px 0 0" : 10, display: "block", marginBottom: msg.text ? 6 : 0 }}/>}{msg.text && <div style={{ fontSize: 14, lineHeight: 1.5, color: "var(--fg)", wordBreak: "break-word" }}>{msg.text}</div>}</div><span className="eyebrow" style={{ marginTop: 3 }}>{timeAgo(msg.ts)}</span></div>); })}
+              <div ref={chatEndRef}/>
+            </div>
+            <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+              <ImageAttach image={dmImage} onImage={setDmImage} onClear={() => setDmImage(null)}/>
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                <input className="input" placeholder="Message..." value={dmDraft} onChange={(e) => setDmDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), sendDM())} style={{ flex: 1 }}/>
+                <button onClick={sendDM} className="btn primary sm" style={{ padding: "10px", width: "40px", height: "40px" }}><IcSend size={14}/></button>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <div style={{ padding: "40px 0 24px", textAlign: "center", fontFamily: mono, fontSize: 10, color: "#3a3530", letterSpacing: "1px" }}>
-        TWATTER — POWERED BY NOSTR — TIME IS THE ONLY ALGORITHM
+        {/* Profile View */}
+        {view === "profile" && (() => {
+          const p = profiles[profileId] || {};
+          const isMe = profileId === pk;
+          const isFollowing = contacts.includes(profileId);
+          const pPosts = getProfilePosts(profileId);
+          const profileIsPro = proProfiles.has(profileId) || (profileId === pk && isPro);
+          return (
+            <div style={{ flex: 1, padding: "16px 20px", overflowY: "auto" }}>
+              <div style={{ paddingBottom: 16, borderBottom: "1px solid var(--hairline)", textAlign: "center", marginBottom: 24 }}>
+                <Avatar profile={p} size={72} isPro={profileIsPro}/>
+                <div style={{ fontSize: 22, fontWeight: 700, marginTop: 12, color: "var(--fg)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>{p.name || shortPk(profileId)}{profileIsPro && <ProBadge/>}</div>
+                <div className="post-handle" style={{ marginTop: 4 }}>@{p.nip05 || shortPk(profileId)}</div>
+                {p.about && <div style={{ fontSize: 14, color: "var(--fg-dim)", marginTop: 10, maxWidth: 400, margin: "10px auto 0", lineHeight: 1.5 }}>{p.about}</div>}
+                {p.lud16 && <div className="chip saffron" style={{ marginTop: 10, justifyContent: "center", width: "fit-content", margin: "10px auto 0" }}>⚡ {p.lud16}</div>}
+                <div style={{ display: "flex", justifyContent: "center", gap: 32, marginTop: 16 }}>
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontFamily: "var(--mono)", fontSize: 18, fontWeight: 700, color: "var(--fg)" }}>{pPosts.length}</div>
+                    <div className="eyebrow">Posts</div>
+                  </div>
+                </div>
+                <div onClick={() => copyToClipboard(nip19.npubEncode(profileId))} className="chip" style={{ marginTop: 12, cursor: "pointer", justifyContent: "center", width: "fit-content", margin: "12px auto 0" }}>
+                  {nip19.npubEncode(profileId).slice(0, 20)}... <IcCopy size={10}/>{copied && <span style={{ color: "var(--accent)", marginLeft: 4 }}>copied!</span>}
+                </div>
+                {!isMe && (
+                  <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 16 }}>
+                    <button onClick={() => toggleFollow(profileId)} className="btn" style={{ borderColor: isFollowing ? "var(--accent)" : "var(--hairline-2)", color: isFollowing ? "var(--accent)" : "var(--fg-dim)" }}>{isFollowing ? "FOLLOWING" : "FOLLOW"}</button>
+                    <button onClick={() => { setActiveChat(profileId); setView("dms"); }} className="btn" style={{ borderColor: "var(--accent)", color: "var(--accent)" }}>MESSAGE</button>
+                    {p.lud16 && <button onClick={() => setZapModal({ profile: p, event: null })} className="btn" style={{ borderColor: "var(--saffron)", color: "var(--saffron)" }}>⚡ ZAP</button>}
+                  </div>
+                )}
+                {isMe && !isPro && <button onClick={() => setShowProModal(true)} className="btn" style={{ marginTop: 14, borderColor: "var(--accent)", color: "var(--accent)" }}>⭐ UPGRADE</button>}
+              </div>
+              <div className="section-title">{isMe ? "Your" : `${p.name || "Their"}`} Posts <span className="line"/></div>
+              {pPosts.length === 0 ? <div style={{ textAlign: "center", padding: "40px", color: "var(--fg-mute)", fontSize: 13 }}>No posts yet.</div> : pPosts.map((e, i) => (
+                <div key={e.id}>
+                  {i > 0 && pPosts[i - 1].created_at !== e.created_at && Math.floor(pPosts[i - 1].created_at / 86400) !== Math.floor(e.created_at / 86400) && <DaySeparator ts={e.created_at}/>}
+                  <Post event={e}/>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+
+        {/* Settings View */}
+        {view === "settings" && (
+          <div style={{ flex: 1, padding: "16px 20px", overflowY: "auto" }}>
+            {isPro ? (
+              <div style={{ background: "var(--surface-2)", border: "1px solid var(--accent)", borderRadius: 10, padding: "16px", marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 20 }}>⭐</span>
+                <div>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 700, color: "var(--accent)" }}>Twatter Pro — Active</div>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--fg-mute)", marginTop: 2 }}>2,000 char posts · Priority relay · Creator tools</div>
+                </div>
+              </div>
+            ) : (
+              <div onClick={() => setShowProModal(true)} style={{ background: "var(--surface)", border: "1px dashed var(--accent)", borderRadius: 10, padding: "16px", marginBottom: 20, cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 20 }}>⭐</span>
+                <div>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 700, color: "var(--accent)" }}>Upgrade to Twatter Pro</div>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--fg-mute)", marginTop: 2 }}>21,000 sats / 30 days · Pay with Lightning</div>
+                </div>
+              </div>
+            )}
+
+            <div className="section-title">Identity <span className="line"/></div>
+            {[["Display Name", myProfile.name||"", (v) => updateProfile({...myProfile,name:v})], ["About", myProfile.about||"", (v) => updateProfile({...myProfile,about:v})], ["Picture URL", myProfile.picture||"", (v) => updateProfile({...myProfile,picture:v})], ["NIP-05", myProfile.nip05||"", (v) => updateProfile({...myProfile,nip05:v})], ["⚡ Lightning", myProfile.lud16||"", (v) => updateProfile({...myProfile,lud16:v})]].map(([label,val,onBlur]) => (
+              <div key={label} style={{ marginBottom: 12 }}>
+                <label className="eyebrow" style={{ marginBottom: 6 }}>{label}</label>
+                <input className="input" defaultValue={val} onBlur={(e) => { if (e.target.value !== val) onBlur(e.target.value); }} onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} placeholder={label.includes("⚡") ? "you@getalby.com" : ""}/>
+              </div>
+            ))}
+
+            <div className="section-title" style={{ marginTop: 24 }}>Keys <span className="line"/></div>
+            <div className="eyebrow" style={{ marginBottom: 6 }}>PUBLIC</div>
+            <div onClick={() => copyToClipboard(nip19.npubEncode(pk))} className="chip accent" style={{ cursor: "pointer", marginBottom: 12, wordBreak: "break-all" }}>{nip19.npubEncode(pk).slice(0, 30)}... <IcCopy size={10}/></div>
+            <div className="eyebrow" style={{ marginBottom: 6 }}>PRIVATE (keep secret!)</div>
+            <div onClick={() => copyToClipboard(nip19.nsecEncode(sk))} className="chip" style={{ cursor: "pointer", color: "var(--red)", borderColor: "var(--red)", marginBottom: 16, wordBreak: "break-all" }}>{nip19.nsecEncode(sk).slice(0, 30)}... <IcCopy size={10}/></div>
+
+            <div className="section-title">Relays <span className="line"/></div>
+            {relays.map((r) => (<div key={r} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--hairline)", fontSize: 12 }}>
+              <span style={{ fontFamily: "var(--mono)", color: "var(--fg)" }}>{r}</span>
+              <button onClick={() => { if (relays.length > 1) setRelays((prev) => prev.filter((x) => x !== r)); }} className="btn sm ghost">remove</button>
+            </div>))}
+            <div style={{ display: "flex", gap: 8, marginTop: 12, marginBottom: 12 }}>
+              <input className="input" placeholder="wss://relay.example.com" value={newRelay} onChange={(e) => setNewRelay(e.target.value)} style={{ flex: 1 }}/>
+              <button onClick={() => { const r = newRelay.trim(); if (r.startsWith("wss://") && !relays.includes(r)) { setRelays((prev) => [...prev, r]); setNewRelay(""); } }} className="btn primary sm">ADD</button>
+            </div>
+            <button onClick={connectAndSubscribe} className="btn" style={{ width: "100%", borderColor: "var(--accent)", color: "var(--accent)" }}>RECONNECT TO RELAYS</button>
+
+            <div className="section-title" style={{ marginTop: 24 }}>Danger Zone <span className="line"/></div>
+            <button onClick={logout} className="btn" style={{ borderColor: "var(--red)", color: "var(--red)", marginTop: 8 }}>LOG OUT & CLEAR DATA</button>
+            <div className="eyebrow" style={{ color: "var(--red)", marginTop: 6 }}>Save your keys before logging out!</div>
+          </div>
+        )}
       </div>
+
+      {/* RIGHT PANEL - KITCHEN */}
+      {tweaks.showKitchen && view === "feed" && <FeedKitchen state={kitchen} setState={setKitchen} relays={relays}/>}
+
+      {/* TWEAKS PANEL (floating) */}
+      {showTweaks && <TweaksPanel tweaks={tweaks} setTweaks={setTweaks}/>}
     </div>
   );
 }

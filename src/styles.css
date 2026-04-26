@@ -1,0 +1,332 @@
+/* ======================== TWATTER THEME ======================== */
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root {
+  --serif: 'Newsreader', 'Georgia', serif;
+  --sans: 'Inter', -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', 'SF Mono', monospace;
+
+  --bg: #0b0a09;
+  --fg: #e8e4df;
+  --fg-dim: #b5b0a8;
+  --fg-faint: #7a756e;
+  --fg-mute: #5a5550;
+
+  --surface: #111110;
+  --surface-2: #161514;
+  --surface-3: #1c1b19;
+
+  --hairline: #1a1918;
+  --hairline-2: #252320;
+
+  --accent: #c89872;
+  --accent-deep: #a6724a;
+  --saffron: #e0a64a;
+  --green: #6b9e6a;
+  --red: #b85c5c;
+
+  --border-radius: 8px;
+}
+
+/* ======================== BASE ======================== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ======================== EYEBROW ======================== */
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+}
+
+/* ======================== AVATAR ======================== */
+.avatar {
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-weight: 700;
+  flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
+}
+.avatar .ring {
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent);
+  pointer-events: none;
+}
+
+/* ======================== BUTTONS ======================== */
+.btn {
+  background: none;
+  border: 1px solid var(--hairline-2);
+  color: var(--fg-dim);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  transition: all .15s ease;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { background: var(--accent); color: #0b0a09; border-color: var(--accent); font-weight: 700; }
+.btn.primary:hover { background: var(--accent-deep); border-color: var(--accent-deep); color: #0b0a09; }
+.btn.ghost { border-color: transparent; }
+.btn.ghost:hover { background: var(--surface-2); border-color: var(--hairline-2); }
+.btn.sm { padding: 4px 9px; font-size: 10px; }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn:disabled:hover { border-color: var(--hairline-2); color: var(--fg-dim); }
+
+/* ======================== CHIPS & TAGS ======================== */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--hairline-2);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--fg-dim);
+  letter-spacing: .04em;
+}
+.chip.accent { color: var(--accent); border-color: rgba(200,152,114,.4); background: rgba(200,152,114,.08); }
+.chip.saffron { color: var(--saffron); border-color: rgba(224,166,74,.35); background: rgba(224,166,74,.07); }
+.chip.green { color: var(--green); border-color: rgba(107,158,106,.35); background: rgba(107,158,106,.07); }
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--fg-faint);
+  letter-spacing: .05em;
+}
+.tag::before { content: "#"; color: var(--accent); opacity: .7; }
+.tag:hover { color: var(--accent); cursor: pointer; }
+
+/* ======================== ICON BUTTON ======================== */
+.iconbtn {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--fg-faint);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  transition: color .12s;
+}
+.iconbtn:hover { color: var(--fg); }
+
+/* ======================== POST ======================== */
+.post {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--hairline);
+  position: relative;
+}
+.post-header { display: flex; align-items: flex-start; gap: 12px; }
+.post-meta { flex: 1; min-width: 0; }
+.post-name { font-family: var(--sans); font-weight: 600; font-size: 14px; color: var(--fg); letter-spacing: -.01em; }
+.post-handle { font-family: var(--mono); font-size: 11px; color: var(--fg-faint); margin-top: 1px; }
+.post-time { font-family: var(--mono); font-size: 10px; color: var(--fg-mute); letter-spacing: .05em; }
+.post-body { font-family: var(--serif); font-size: 17px; line-height: 1.55; color: var(--fg); margin: 10px 0 0; letter-spacing: -.005em; white-space: pre-wrap; word-break: break-word; }
+.post-body.comfy { font-size: 18px; line-height: 1.6; }
+.post-body.compact { font-size: 15px; line-height: 1.5; }
+.post-actions { display: flex; gap: 18px; margin-top: 12px; align-items: center; }
+
+/* ======================== THREAD LINE ======================== */
+.thread-line {
+  border-left: 1px solid var(--hairline-2);
+  margin-left: 18px;
+  padding-left: 20px;
+  margin-top: 8px;
+}
+
+/* ======================== DIAL ======================== */
+.dial {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--hairline-2);
+  position: relative;
+  cursor: grab;
+}
+.dial::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--hairline);
+  background: var(--surface-2);
+}
+.dial-needle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 28px;
+  background: var(--accent);
+  transform-origin: 50% 100%;
+  border-radius: 2px;
+  z-index: 2;
+}
+.dial-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translate(-50%,-50%);
+  z-index: 3;
+}
+.dial-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: .1em;
+  color: var(--fg-faint);
+  text-transform: uppercase;
+  text-align: center;
+  margin-top: 6px;
+}
+.dial-val {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  text-align: center;
+  margin-top: 3px;
+  font-weight: 600;
+}
+
+/* ======================== SWITCH ======================== */
+.switch {
+  width: 28px;
+  height: 16px;
+  border-radius: 10px;
+  background: var(--hairline-2);
+  position: relative;
+  cursor: pointer;
+  transition: background .15s;
+  flex-shrink: 0;
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--fg-dim);
+  transition: all .15s;
+}
+.switch.on { background: var(--accent); }
+.switch.on::after { left: 14px; background: #0b0a09; }
+
+/* ======================== KEY-VALUE ROW ======================== */
+.kv {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.kv:last-child { border-bottom: 0; }
+.kv-k {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--fg-faint);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+/* ======================== INPUT ======================== */
+.input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--hairline-2);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 14px;
+  outline: none;
+}
+.input:focus { border-color: var(--accent); }
+.input.mono { font-family: var(--mono); font-size: 12px; }
+
+/* ======================== SECTION TITLE ======================== */
+.section-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--fg-faint);
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  padding: 16px 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.section-title .line {
+  flex: 1;
+  height: 1px;
+  background: var(--hairline);
+  margin-left: 12px;
+}
+
+/* ======================== PLACEHOLDER IMAGE ======================== */
+.imgph {
+  width: 100%;
+  aspect-ratio: 16/10;
+  border-radius: 8px;
+  background: repeating-linear-gradient(45deg, var(--surface-2) 0 8px, var(--surface) 8px 16px);
+  border: 1px solid var(--hairline-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--fg-faint);
+  letter-spacing: .1em;
+}
+.imgph.sm { aspect-ratio: 4/3; }
+
+/* ======================== CHROME (sidebar etc.) ======================== */
+.chrome { background: var(--surface); }
+
+/* ======================== ANIMATION ======================== */
+@keyframes pulse { 0%,100% { opacity: .3; } 50% { opacity: 1; } }
+.pulse { animation: pulse 2s infinite; }
+
+/* ======================== DENSITY ======================== */
+[data-density="compact"] .post { padding: 12px 0; }
+[data-density="compact"] .post-body { font-size: 15px; line-height: 1.5; }
+[data-density="comfy"] .post { padding: 24px 0; }
+[data-density="comfy"] .post-body { font-size: 18px; line-height: 1.6; }
+
+/* ======================== SCROLLBAR ======================== */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--hairline-2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--fg-mute); }
