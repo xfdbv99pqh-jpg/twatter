@@ -1,14 +1,16 @@
 {
   "name": "twatter-payment-server",
-  "version": "2.0.0",
-  "description": "Twatter Pro subscription payment server (Lightning/Alby Hub)",
+  "version": "3.1.0",
+  "type": "module",
+  "description": "Twatter Pro subscription payment server (Lightning/Alby Hub NWC)",
   "main": "payment.js",
   "scripts": {
     "start": "node payment.js",
     "dev": "node --watch payment.js"
   },
   "dependencies": {
-    "better-sqlite3": "^11.0.0"
+    "better-sqlite3": "^11.0.0",
+    "@getalby/sdk": "^3.0.0"
   },
   "engines": {
     "node": ">=18"

@@ -1,29 +1,15 @@
 /**
- * Twatter Payment Server — Lightning Edition (Alby Hub / NWC)
- * Handles Bitcoin Lightning payments for Twatter Pro subscriptions
- * Uses Nostr Wallet Connect (NIP-47) — no KYC, self-custodial, Nostr-native
- *
- * Endpoints:
- *   POST /checkout          — Create Lightning invoice for Pro (30 days)
- *   GET  /pro/:pubkey       — Check if pubkey has active Pro subscription
- *   GET  /invoice/:id       — Check invoice payment status
- *   GET  /health            — Health check
- *
- * Environment variables:
- *   PORT                    — HTTP port (default: 7779)
- *   DB_PATH                 — SQLite database path (default: ./twatter-payments.db)
- *   NWC_URL                 — Nostr Wallet Connect URL from Alby Hub
- *                             (nostr+walletconnect://pubkey?relay=...&secret=...)
- *   PRO_PRICE_SATS          — Price for 30 days of Pro in satoshis (default: 21000)
- *   PRO_DURATION_DAYS       — Duration of Pro subscription in days (default: 30)
- *   CLIENT_URL              — Your Twatter client URL (for CORS)
+ * Twatter Payment Server v3.1.0 — NWC Edition
+ * Uses Nostr Wallet Connect (NIP-47) via @getalby/sdk
+ * No HTTP API auth needed — NWC handles everything over Nostr relays
  */
 
-"use strict";
-
-var http = require("http");
-var crypto = require("crypto");
-var Database = require("better-sqlite3");
+import WebSocket from "ws";
+globalThis.WebSocket = WebSocket;
+import http from "http";
+import crypto from "crypto";
+import Database from "better-sqlite3";
+import { nwc } from "@getalby/sdk";
 
 // Config
 var PORT = parseInt(process.env.PORT || "7779", 10);
@@ -33,36 +19,20 @@ var PRO_PRICE_SATS = parseInt(process.env.PRO_PRICE_SATS || "21000");
 var PRO_DURATION_DAYS = parseInt(process.env.PRO_DURATION_DAYS || "30");
 var CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 
-// Parse NWC URL into components
-var nwcPubkey = "";
-var nwcRelay = "";
-var nwcSecret = "";
+// NWC Client
+var nwcClient = null;
 
 if (NWC_URL) {
   try {
-    // Format: nostr+walletconnect://pubkey?relay=wss://...&secret=hex
-    var url = NWC_URL.replace("nostr+walletconnect://", "");
-    var parts = url.split("?");
-    nwcPubkey = parts[0];
-    var params = new URLSearchParams(parts[1] || "");
-    nwcRelay = params.get("relay") || "";
-    nwcSecret = params.get("secret") || "";
-    console.log("[payment] NWC configured: pubkey=" + nwcPubkey.slice(0, 12) + "... relay=" + nwcRelay);
+    nwcClient = new nwc.NWCClient({ nostrWalletConnectUrl: NWC_URL });
+    console.log("[payment] NWC client initialized");
   } catch(e) {
-    console.error("[payment] Failed to parse NWC_URL:", e.message);
+    console.error("[payment] Failed to init NWC client:", e.message);
   }
 } else {
   console.warn("[payment] WARNING: NWC_URL not set. Lightning invoices will fail.");
   console.warn("[payment] Set up Alby Hub and paste your NWC connection string.");
 }
-
-// NWC uses Nostr events over WebSocket. We need a lightweight approach.
-// Since we're server-side Node.js without the full Alby SDK,
-// we'll use Alby Hub's HTTP API instead (runs on port 8080 by default).
-// This is simpler and more reliable for a server-side payment processor.
-
-var ALBYHUB_URL = process.env.ALBYHUB_URL || "http://localhost:8080";
-var ALBYHUB_PASSWORD = process.env.ALBYHUB_PASSWORD || "";
 
 // Database
 var db = new Database(DB_PATH);
@@ -112,68 +82,26 @@ var getInvoiceByHash = db.prepare("SELECT * FROM invoices WHERE payment_hash = ?
 var markInvoicePaid = db.prepare("UPDATE invoices SET status = 'paid', paid_at = unixepoch() WHERE invoice_id = ?");
 var getPendingInvoices = db.prepare("SELECT * FROM invoices WHERE status = 'pending' AND created_at > unixepoch() - 3600");
 
-// Alby Hub HTTP API helper
-function albyhubRequest(path, method, body) {
-  return new Promise(function(resolve, reject) {
-    var urlObj = new URL(path, ALBYHUB_URL);
-    var isHttps = urlObj.protocol === "https:";
-    var lib = isHttps ? require("https") : require("http");
-    var options = {
-      hostname: urlObj.hostname,
-      port: urlObj.port || (isHttps ? 443 : 80),
-      path: urlObj.pathname + urlObj.search,
-      method: method || "GET",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      timeout: 10000
-    };
-    // Alby Hub uses password auth
-    if (ALBYHUB_PASSWORD) {
-      options.headers["Authorization"] = "Bearer " + ALBYHUB_PASSWORD;
-    }
-    var req = lib.request(options, function(res) {
-      var data = "";
-      res.on("data", function(c) { data += c; });
-      res.on("end", function() {
-        try {
-          var parsed = JSON.parse(data);
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            resolve(parsed);
-          } else {
-            reject(new Error("Alby Hub API error " + res.statusCode + ": " + data));
-          }
-        } catch(e) {
-          reject(new Error("Alby Hub API parse error: " + data));
-        }
-      });
-    });
-    req.on("error", reject);
-    req.on("timeout", function() { req.destroy(); reject(new Error("Alby Hub API timeout")); });
-    if (body) req.write(JSON.stringify(body));
-    req.end();
-  });
-}
-
-// Create a Lightning invoice via Alby Hub
+// Create a Lightning invoice via NWC
 async function createLightningInvoice(amountSats, description) {
-  var result = await albyhubRequest("/api/invoices", "POST", {
-    amount: amountSats * 1000, // Alby Hub expects millisats
+  if (!nwcClient) throw new Error("NWC not configured");
+  var result = await nwcClient.makeInvoice({
+    amount: amountSats * 1000, // NWC expects millisats
     description: description || "Twatter Pro"
   });
-  // Alby Hub returns: { payment_request, payment_hash, r_hash, ... }
   return {
-    invoice_id: result.payment_hash || result.r_hash || crypto.randomBytes(16).toString("hex"),
-    payment_hash: result.payment_hash || result.r_hash || "",
-    bolt11: result.payment_request || result.bolt11 || ""
+    invoice_id: result.payment_hash || crypto.randomBytes(16).toString("hex"),
+    payment_hash: result.payment_hash || "",
+    bolt11: result.invoice || result.payment_request || ""
   };
 }
 
-// Check invoice status via Alby Hub
+// Check invoice status via NWC
 async function checkInvoiceStatus(paymentHash) {
+  if (!nwcClient) return false;
   try {
-    var result = await albyhubRequest("/api/invoices/" + paymentHash, "GET");
-    return result.settled === true || result.state === "SETTLED" || result.is_paid === true;
+    var result = await nwcClient.lookupInvoice({ payment_hash: paymentHash });
+    return (result.settled_at != null && result.settled_at !== 0) || (typeof result.preimage === "string" && result.preimage.length > 10);
   } catch(e) {
     return false;
   }
@@ -218,7 +146,7 @@ function activateProForPubkey(pubkey, amountSats) {
   return expiresAt;
 }
 
-// POST /checkout — create a Lightning invoice
+// POST /checkout
 async function handleCheckout(req, res) {
   var body;
   try {
@@ -227,38 +155,28 @@ async function handleCheckout(req, res) {
   } catch(e) {
     return sendJSON(res, 400, { error: "Invalid JSON body" });
   }
-
   var pubkey = body.pubkey;
   if (!isValidPubkey(pubkey)) return sendJSON(res, 400, { error: "Invalid pubkey" });
-
   var existing = getSubscriber.get(pubkey);
   var nowTs = Math.floor(Date.now() / 1000);
   if (existing && existing.status === "active" && existing.expires_at > nowTs) {
     return sendJSON(res, 200, {
-      alreadyPro: true,
-      expiresAt: existing.expires_at,
+      alreadyPro: true, expiresAt: existing.expires_at,
       daysRemaining: Math.ceil((existing.expires_at - nowTs) / 86400)
     });
   }
-
   try {
     var invoice = await createLightningInvoice(
       PRO_PRICE_SATS,
       "Twatter Pro " + PRO_DURATION_DAYS + " days for " + pubkey.slice(0, 8) + "..."
     );
     insertInvoice.run({
-      invoice_id: invoice.invoice_id,
-      payment_hash: invoice.payment_hash,
-      pubkey: pubkey,
-      amount_sats: PRO_PRICE_SATS,
-      bolt11: invoice.bolt11
+      invoice_id: invoice.invoice_id, payment_hash: invoice.payment_hash,
+      pubkey: pubkey, amount_sats: PRO_PRICE_SATS, bolt11: invoice.bolt11
     });
     return sendJSON(res, 200, {
-      charge_id: invoice.invoice_id,
-      payment_hash: invoice.payment_hash,
-      bolt11: invoice.bolt11,
-      amount_sats: PRO_PRICE_SATS,
-      expires_in: 600
+      charge_id: invoice.invoice_id, payment_hash: invoice.payment_hash,
+      bolt11: invoice.bolt11, amount_sats: PRO_PRICE_SATS, expires_in: 600
     });
   } catch(err) {
     console.error("[payment] Invoice creation error:", err.message);
@@ -266,39 +184,30 @@ async function handleCheckout(req, res) {
   }
 }
 
-// GET /pro/:pubkey — check Pro status
+// GET /pro/:pubkey
 function handleProCheck(req, res, pubkey) {
   if (!isValidPubkey(pubkey)) return sendJSON(res, 400, { error: "Invalid pubkey" });
   var row = getSubscriber.get(pubkey);
   var nowTs = Math.floor(Date.now() / 1000);
-  if (!row || row.status !== "active" || !row.expires_at) {
-    return sendJSON(res, 200, { isPro: false });
-  }
+  if (!row || row.status !== "active" || !row.expires_at) return sendJSON(res, 200, { isPro: false });
   if (row.expires_at < nowTs) {
     upsertSubscriber.run({ pubkey: pubkey, status: "expired", expires_at: row.expires_at, total_paid_sats: 0 });
     return sendJSON(res, 200, { isPro: false, expired: true });
   }
   return sendJSON(res, 200, {
-    isPro: true,
-    expiresAt: row.expires_at,
+    isPro: true, expiresAt: row.expires_at,
     daysRemaining: Math.ceil((row.expires_at - nowTs) / 86400)
   });
 }
 
-// GET /invoice/:id — check invoice and activate if paid
+// GET /invoice/:id
 async function handleInvoiceCheck(req, res, invoiceId) {
-  var invoice = getInvoice.get(invoiceId);
-  if (!invoice) {
-    // Try by payment hash
-    invoice = getInvoiceByHash.get(invoiceId);
-  }
+  var invoice = getInvoice.get(invoiceId) || getInvoiceByHash.get(invoiceId);
   if (!invoice) return sendJSON(res, 404, { error: "Invoice not found" });
-
   if (invoice.status === "paid") {
     var sub = getSubscriber.get(invoice.pubkey);
     return sendJSON(res, 200, { paid: true, pubkey: invoice.pubkey, expiresAt: sub ? sub.expires_at : null });
   }
-
   try {
     var paid = await checkInvoiceStatus(invoice.payment_hash || invoice.invoice_id);
     if (paid) {
@@ -340,7 +249,6 @@ var server = http.createServer(async function(req, res) {
   var url = new URL(req.url, "http://localhost:" + PORT);
   var method = req.method.toUpperCase();
   var pathname = url.pathname;
-
   if (method === "OPTIONS") {
     res.writeHead(204, {
       "Access-Control-Allow-Origin": "*",
@@ -349,30 +257,21 @@ var server = http.createServer(async function(req, res) {
     });
     return res.end();
   }
-
   try {
     if (method === "GET" && pathname === "/health") {
       var active = db.prepare("SELECT COUNT(*) as n FROM subscribers WHERE status = 'active'").get();
       var pendingCount = db.prepare("SELECT COUNT(*) as n FROM invoices WHERE status = 'pending' AND created_at > unixepoch() - 3600").get();
       return sendJSON(res, 200, {
-        ok: true,
-        provider: "albyhub",
-        albyhub: ALBYHUB_URL,
-        proSubscribers: active.n,
-        pendingInvoices: pendingCount.n,
-        proPriceSats: PRO_PRICE_SATS,
-        proDurationDays: PRO_DURATION_DAYS
+        ok: true, provider: "nwc", nwcConnected: !!nwcClient,
+        proSubscribers: active.n, pendingInvoices: pendingCount.n,
+        proPriceSats: PRO_PRICE_SATS, proDurationDays: PRO_DURATION_DAYS
       });
     }
-
     var proMatch = pathname.match(/^\/pro\/([^/]+)$/);
     if (method === "GET" && proMatch) return handleProCheck(req, res, proMatch[1]);
-
     var invMatch = pathname.match(/^\/invoice\/([^/]+)$/);
     if (method === "GET" && invMatch) return await handleInvoiceCheck(req, res, invMatch[1]);
-
     if (method === "POST" && pathname === "/checkout") return await handleCheckout(req, res);
-
     return sendJSON(res, 404, { error: "Not found" });
   } catch(err) {
     console.error("[payment] Unhandled error:", err);
@@ -381,8 +280,8 @@ var server = http.createServer(async function(req, res) {
 });
 
 server.listen(PORT, function() {
-  console.log("[payment] Twatter Payment Server v3.0.0 (Alby Hub) on port " + PORT);
-  console.log("[payment] Alby Hub: " + ALBYHUB_URL);
+  console.log("[payment] Twatter Payment Server v3.1.0 (NWC) on port " + PORT);
+  console.log("[payment] NWC: " + (nwcClient ? "connected" : "NOT configured"));
   console.log("[payment] Pro price: " + PRO_PRICE_SATS + " sats / " + PRO_DURATION_DAYS + " days");
   console.log("[payment] DB: " + DB_PATH);
   var count = db.prepare("SELECT COUNT(*) as n FROM subscribers WHERE status = 'active'").get();
@@ -390,5 +289,5 @@ server.listen(PORT, function() {
 });
 
 server.on("error", function(err) { console.error("[payment] Server error:", err); process.exit(1); });
-process.on("SIGTERM", function() { console.log("[payment] Shutting down..."); db.close(); server.close(function() { process.exit(0); }); });
-process.on("SIGINT", function() { console.log("[payment] Shutting down..."); db.close(); server.close(function() { process.exit(0); }); });
+process.on("SIGTERM", function() { console.log("[payment] Shutting down..."); if (nwcClient) nwcClient.close(); db.close(); server.close(function() { process.exit(0); }); });
+process.on("SIGINT", function() { console.log("[payment] Shutting down..."); if (nwcClient) nwcClient.close(); db.close(); server.close(function() { process.exit(0); }); });

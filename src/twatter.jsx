@@ -393,6 +393,7 @@ export default function Twatter() {
   const [kitchen, setKitchen] = useState(defaultKitchenState());
   const [tweaks, setTweaks] = useState(defaultTweaks());
   const [showTweaks, setShowTweaks] = useState(false);
+  const [showMobileKitchen, setShowMobileKitchen] = useState(false);
 
   // ======================== LOAD KEYS ========================
   useEffect(() => {
@@ -572,13 +573,13 @@ export default function Twatter() {
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--fg)", display: "grid", gridTemplateColumns: tweaks.showKitchen && view === "feed" ? "220px 1fr 280px" : "220px 1fr", gridTemplateRows: "1fr" }}>
+    <div className="app-grid" style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--fg)", display: "grid", gridTemplateColumns: tweaks.showKitchen && view === "feed" ? "220px 1fr 280px" : "220px 1fr", gridTemplateRows: "1fr" }}>
       {/* Modals */}
       {zapModal && <ZapModal targetProfile={zapModal.profile} targetEvent={zapModal.event} sk={sk} pk={pk} relays={relays} onClose={() => setZapModal(null)}/>}
       {showProModal && <ProModal pk={pk} onClose={() => setShowProModal(false)} onProActivated={() => setIsPro(true)}/>}
 
       {/* LEFT SIDEBAR */}
-      <div style={{ background: "var(--surface)", borderRight: "1px solid var(--hairline)", display: "flex", flexDirection: "column", height: "100vh", overflowY: "auto", padding: "20px 16px" }}>
+      <div className="desktop-sidebar" style={{ background: "var(--surface)", borderRight: "1px solid var(--hairline)", display: "flex", flexDirection: "column", height: "100vh", overflowY: "auto", padding: "20px 16px" }}>
         <div style={{ marginBottom: 32, cursor: "pointer" }} onClick={() => { setView("feed"); setProfileId(null); setActiveChat(null); }}>
           <div style={{ fontFamily: "var(--serif)", fontSize: 22, fontWeight: 700, marginBottom: 4, letterSpacing: "-0.5px" }}>twat<span style={{ color: "var(--accent)" }}>ter</span></div>
           <div className="eyebrow" style={{ fontSize: 8 }}>NO ALGORITHM · EST.2026</div>
@@ -615,7 +616,7 @@ export default function Twatter() {
       </div>
 
       {/* MAIN CONTENT */}
-      <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", height: "100vh" }}>
+      <div className="main-content" style={{ overflowY: "auto", display: "flex", flexDirection: "column", height: "100vh" }}>
         {/* Feed View */}
         {view === "feed" && (
           <div style={{ flex: 1, padding: "16px 20px" }}>
@@ -825,11 +826,41 @@ export default function Twatter() {
         )}
       </div>
 
-      {/* RIGHT PANEL - KITCHEN */}
-      {tweaks.showKitchen && view === "feed" && <FeedKitchen state={kitchen} setState={setKitchen} relays={relays}/>}
+      {/* RIGHT PANEL - KITCHEN (desktop) */}
+      {tweaks.showKitchen && view === "feed" && <div className="desktop-kitchen"><FeedKitchen state={kitchen} setState={setKitchen} relays={relays}/></div>}
 
       {/* TWEAKS PANEL (floating) */}
       {showTweaks && <TweaksPanel tweaks={tweaks} setTweaks={setTweaks}/>}
+
+      {/* MOBILE BOTTOM NAV */}
+      <nav className="bottom-nav">
+        <div className="bottom-nav-inner">
+          {[["feed", <IcHome size={18}/>, "Feed"], ["explore", <IcGlobe size={18}/>, "Explore"], ["dms", <IcMail size={18}/>, "Messages"], ["profile", <IcUser size={18}/>, "Profile"]].map(([v, icon, label]) => {
+            const isActive = v === "profile" ? (view === "profile" && profileId === pk) : view === v;
+            return (
+              <button key={v} className={`bottom-nav-btn${isActive ? " active" : ""}`} onClick={() => { setShowMobileKitchen(false); if (v === "profile") { setProfileId(pk); setView("profile"); } else if (v === "dms") { setView("dms"); setActiveChat(null); } else setView(v); }}>
+                {icon}
+                <span>{label}</span>
+              </button>
+            );
+          })}
+          {view === "feed" && (
+            <button className={`bottom-nav-btn${showMobileKitchen ? " active" : ""}`} onClick={() => setShowMobileKitchen(!showMobileKitchen)}>
+              <IcSliders size={18}/>
+              <span>Kitchen</span>
+            </button>
+          )}
+        </div>
+      </nav>
+
+      {/* MOBILE KITCHEN DRAWER */}
+      <div className={`kitchen-drawer-overlay${showMobileKitchen ? " open" : ""}`} onClick={() => setShowMobileKitchen(false)}/>
+      <div className={`kitchen-drawer${showMobileKitchen ? " open" : ""}`}>
+        <div className="kitchen-drawer-handle" onClick={() => setShowMobileKitchen(false)}/>
+        <div style={{ padding: "0 16px 24px" }}>
+          <FeedKitchen state={kitchen} setState={setKitchen} relays={relays}/>
+        </div>
+      </div>
     </div>
   );
 }

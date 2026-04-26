@@ -330,3 +330,108 @@ html, body, #root {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--hairline-2); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--fg-mute); }
+
+/* ======================== MOBILE BOTTOM NAV ======================== */
+.bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--hairline);
+  padding: 6px 0 env(safe-area-inset-bottom, 6px);
+  z-index: 90;
+}
+.bottom-nav-inner {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+.bottom-nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 12px;
+  color: var(--fg-faint);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: .04em;
+}
+.bottom-nav-btn.active { color: var(--accent); }
+
+/* Kitchen drawer (mobile) */
+.kitchen-drawer-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 80;
+}
+.kitchen-drawer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 75vh;
+  background: var(--surface);
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  overflow-y: auto;
+  z-index: 81;
+  transform: translateY(100%);
+  transition: transform .3s ease;
+}
+.kitchen-drawer.open {
+  transform: translateY(0);
+}
+.kitchen-drawer-handle {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 4px;
+  cursor: grab;
+}
+.kitchen-drawer-handle::after {
+  content: "";
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--hairline-2);
+}
+
+/* ======================== RESPONSIVE ======================== */
+@media (max-width: 768px) {
+  /* Hide sidebar */
+  .desktop-sidebar { display: none !important; }
+
+  /* Hide desktop kitchen panel */
+  .desktop-kitchen { display: none !important; }
+
+  /* Force single column */
+  .app-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Show bottom nav */
+  .bottom-nav { display: block; }
+
+  /* Show kitchen drawer overlay when open */
+  .kitchen-drawer-overlay.open { display: block; }
+
+  /* Main content needs bottom padding for nav */
+  .main-content {
+    padding-bottom: 70px !important;
+  }
+
+  /* Tweaks panel: full width on mobile */
+  .tweaks-mobile {
+    right: 8px !important;
+    left: 8px !important;
+    width: auto !important;
+    bottom: 70px !important;
+  }
+}
