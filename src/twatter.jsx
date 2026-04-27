@@ -56,6 +56,7 @@ function makePost(text, sk, imageUrl) { const tags = []; if (imageUrl) tags.push
 function makeProfile(profile, sk) { return makeEvent(0, JSON.stringify(profile), [], sk); }
 function makeContacts(pubkeys, sk) { return makeEvent(3, "", pubkeys.map((pk) => ["p", pk]), sk); }
 function makeReaction(eventId, eventPk, sk) { return makeEvent(7, "+", [["e", eventId], ["p", eventPk]], sk); }
+function makeDelete(eventId, reason, sk) { return makeEvent(5, reason || "", [["e", eventId]], sk); }
 async function makeDM(text, recipientPk, sk, imageUrl) { let content = text; if (imageUrl) content = content ? `${content}\n${imageUrl}` : imageUrl; return makeEvent(4, await nip04.encrypt(sk, recipientPk, content), [["p", recipientPk]], sk); }
 
 function parseProfile(event) {
@@ -589,6 +590,7 @@ export default function Twatter() {
   const toggleFollow = async (targetPk) => { if (!sk) return; const newC = contacts.includes(targetPk) ? contacts.filter((c) => c !== targetPk) : [...contacts, targetPk]; await publish(makeContacts(newC, sk)); setContacts(newC); };
   const updateProfile = async (profileData) => { if (!sk) return; await publish(makeProfile(profileData, sk)); setProfiles((prev) => ({ ...prev, [pk]: { ...profileData, pubkey: pk, created_at: now() } })); };
   const sendDM = async () => { if ((!dmDraft.trim() && !dmImage) || !activeChat || !sk) return; const event = await makeDM(dmDraft.trim(), activeChat, sk, dmImage); await publish(event); setDmMessages((prev) => ({ ...prev, [activeChat]: [...(prev[activeChat] || []), { id: event.id, from: pk, to: activeChat, text: dmDraft.trim(), ts: event.created_at, image: dmImage }].sort((a, b) => a.ts - b.ts) })); setDmDraft(""); setDmImage(null); };
+  const deletePost = async (eventId) => { if (!sk || !isPro) return; const event = makeDelete(eventId, "deleted by author", sk); await publish(event); setPosts((prev) => prev.filter((p) => p.id !== eventId)); };
   const openProfile = (pubkey) => { setProfileId(pubkey); setView("profile"); };
   const copyToClipboard = (text) => { navigator.clipboard?.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }).catch(() => {}); };
   const startNewDM = () => { let target = newDmPk.trim(); try { if (target.startsWith("npub")) { const d = nip19.decode(target); if (d.type === "npub") target = d.data; } } catch {} if (target && /^[0-9a-f]{64}$/i.test(target)) { setActiveChat(target); setNewDmPk(""); if (poolRef.current && !profiles[target]) poolRef.current.querySync(relays, { kinds: [0], authors: [target], limit: 1 }).then((evs) => { if (evs[0]) { const p = parseProfile(evs[0]); if (p) setProfiles((prev) => ({ ...prev, [target]: p })); } }).catch(() => {}); } };
@@ -706,6 +708,7 @@ export default function Twatter() {
             <IcZap filled={!!zapData} size={16}/>
             {zapData && <span style={{ fontSize: 11, marginLeft: 4 }}>{formatSats(zapData.sats)} <span style={{ color: "var(--fg-mute)" }}>({zapData.count})</span></span>}
           </button>
+          {isPro && event.pubkey === pk && <button onClick={() => { if (confirm("Delete this post? Relays that support NIP-09 will remove it.")) deletePost(event.id); }} className="iconbtn" style={{ color: "var(--fg-mute)", marginLeft: "auto" }}><IcClose size={14}/></button>}
         </div>
         {replies.map((r) => { const rp = profiles[r.pubkey]; return (<div key={r.id} className="thread-line"><div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}><Avatar profile={rp} size={28} onClick={() => openProfile(r.pubkey)}/><span className="post-name" style={{ cursor: "pointer" }} onClick={() => openProfile(r.pubkey)}>{rp?.name || shortPk(r.pubkey)}</span><span className="post-time">{timeAgo(r.created_at)}</span></div><PostBody text={r.content} density={tweaks.density}/></div>); })}
         {replyTo === event.id && (<div style={{ marginTop: 8, marginLeft: 40 }}><input className="input" placeholder="Reply..." value={replyDraft} onChange={(e) => setReplyDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addReply(event)} autoFocus/></div>)}
