@@ -408,6 +408,11 @@ html, body, #root {
   background: var(--hairline-2);
 }
 
+/* ======================== MOBILE HEADER ======================== */
+.mobile-header {
+  display: none;
+}
+
 /* ======================== RESPONSIVE ======================== */
 @media (max-width: 768px) {
   /* Hide sidebar */
@@ -415,6 +420,14 @@ html, body, #root {
 
   /* Hide desktop kitchen panel */
   .desktop-kitchen { display: none !important; }
+
+  /* Show mobile header */
+  .mobile-header {
+    display: flex !important;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
 
   /* Force single column */
   .app-grid {

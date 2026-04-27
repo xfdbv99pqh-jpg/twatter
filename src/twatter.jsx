@@ -733,11 +733,23 @@ export default function Twatter() {
   );
 
   return (
-    <div className="app-grid" style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--fg)", display: "grid", gridTemplateColumns: tweaks.showKitchen && view === "feed" ? "220px 1fr 280px" : "220px 1fr", gridTemplateRows: "1fr" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--fg)" }}>
       {/* Modals */}
       {zapModal && <ZapModal targetProfile={zapModal.profile} targetEvent={zapModal.event} sk={sk} pk={pk} relays={relays} onClose={() => setZapModal(null)}/>}
       {showProModal && <ProModal pk={pk} onClose={() => setShowProModal(false)} onProActivated={() => setIsPro(true)}/>}
 
+      {/* MOBILE HEADER */}
+      <div className="mobile-header" style={{ alignItems: "center", justifyContent: "space-between", padding: "10px 16px", background: "var(--surface)", borderBottom: "1px solid var(--hairline)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={() => { setView("feed"); setProfileId(null); setActiveChat(null); }}>
+          <IcLogo size={22}/>
+          <div style={{ fontFamily: "var(--sans)", fontSize: 13, fontWeight: 500, color: "var(--fg)", letterSpacing: "5px", textTransform: "uppercase" }}>Twatter</div>
+        </div>
+        <button className="iconbtn" onClick={() => setView("settings")} style={{ color: view === "settings" ? "var(--accent)" : "var(--fg-faint)" }}>
+          <IcSettings size={18}/>
+        </button>
+      </div>
+
+      <div className="app-grid" style={{ display: "grid", gridTemplateColumns: tweaks.showKitchen && view === "feed" ? "220px 1fr 280px" : "220px 1fr", gridTemplateRows: "1fr" }}>
       {/* LEFT SIDEBAR */}
       <div className="desktop-sidebar" style={{ background: "var(--surface)", borderRight: "1px solid var(--hairline)", display: "flex", flexDirection: "column", height: "100vh", overflowY: "auto", padding: "20px 16px" }}>
         <div style={{ marginBottom: 32, cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }} onClick={() => { setView("feed"); setProfileId(null); setActiveChat(null); }}>
@@ -1136,11 +1148,12 @@ export default function Twatter() {
 
       {/* TWEAKS PANEL (floating) */}
       {showTweaks && <TweaksPanel tweaks={tweaks} setTweaks={setTweaks}/>}
+      </div>{/* end app-grid */}
 
       {/* MOBILE BOTTOM NAV */}
       <nav className="bottom-nav">
         <div className="bottom-nav-inner">
-          {[["feed", <IcHome size={18}/>, "Feed"], ["explore", <IcGlobe size={18}/>, "Explore"], ["dms", <IcMail size={18}/>, "Messages"], ["profile", <IcUser size={18}/>, "Profile"]].map(([v, icon, label]) => {
+          {[["feed", <IcHome size={18}/>, "Feed"], ["explore", <IcGlobe size={18}/>, "Explore"], ["dms", <IcMail size={18}/>, "Messages"], ["profile", <IcUser size={18}/>, "Profile"], ["settings", <IcSettings size={18}/>, "Settings"]].map(([v, icon, label]) => {
             const isActive = v === "profile" ? (view === "profile" && profileId === pk) : view === v;
             return (
               <button key={v} className={`bottom-nav-btn${isActive ? " active" : ""}`} onClick={() => { setShowMobileKitchen(false); if (v === "profile") { setProfileId(pk); setView("profile"); } else if (v === "dms") { setView("dms"); setActiveChat(null); } else setView(v); }}>
