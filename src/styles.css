@@ -408,6 +408,36 @@ html, body, #root {
   background: var(--hairline-2);
 }
 
+/* ======================== KITCHEN SLIDER ======================== */
+.kitchen-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--hairline-2);
+  outline: none;
+  cursor: pointer;
+}
+.kitchen-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  cursor: pointer;
+}
+.kitchen-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  cursor: pointer;
+}
+
 /* ======================== MOBILE HEADER ======================== */
 .mobile-header {
   display: none;

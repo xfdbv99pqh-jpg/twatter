@@ -1,6 +1,6 @@
 // ======================== FEED KITCHEN ========================
 import React, { useState } from "react";
-import { Switch, Dial } from "./atoms.jsx";
+import { Switch } from "./atoms.jsx";
 import { IcClock, IcClose, IcSlash, IcDot } from "./icons.jsx";
 
 export function defaultKitchenState() {
@@ -103,23 +103,23 @@ export function FeedKitchen({ state, setState, relays }) {
         ))}
       </div>
 
-      {/* Dials */}
+      {/* Sliders */}
       <div className="section-title" style={{ marginTop: 22 }}>Dials <span className="line" /></div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 4 }}>
-        <Dial
-          value={Math.log(state.timeHours + 1) / Math.log(168 + 1)}
-          max={1}
-          label="Time"
-          valueLabel={timeLabel()}
-          onChange={(v) => setKey("timeHours", Math.round(Math.exp(v * Math.log(168 + 1)) - 1))}
-        />
-        <Dial
-          value={state.volume}
-          max={1}
-          label="Volume"
-          valueLabel={volumeLabel()}
-          onChange={(v) => setKey("volume", v)}
-        />
+      <div style={{ marginTop: 4, display: "flex", flexDirection: "column", gap: 16 }}>
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <span style={{ fontFamily: "var(--mono)", fontSize: 9, letterSpacing: ".1em", color: "var(--fg-faint)", textTransform: "uppercase" }}>Time</span>
+            <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", fontWeight: 600 }}>{timeLabel()}</span>
+          </div>
+          <input type="range" className="kitchen-slider" min="0" max="1000" value={Math.round(Math.log(state.timeHours + 1) / Math.log(168 + 1) * 1000)} onChange={(e) => { const v = e.target.value / 1000; setKey("timeHours", Math.round(Math.exp(v * Math.log(168 + 1)) - 1)); }} />
+        </div>
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <span style={{ fontFamily: "var(--mono)", fontSize: 9, letterSpacing: ".1em", color: "var(--fg-faint)", textTransform: "uppercase" }}>Volume</span>
+            <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", fontWeight: 600 }}>{volumeLabel()}</span>
+          </div>
+          <input type="range" className="kitchen-slider" min="0" max="1000" value={Math.round(state.volume * 1000)} onChange={(e) => setKey("volume", e.target.value / 1000)} />
+        </div>
       </div>
 
       {/* Toggles */}
