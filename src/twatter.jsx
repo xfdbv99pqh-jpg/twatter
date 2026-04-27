@@ -512,6 +512,7 @@ export default function Twatter() {
     const seenPosts = new Set(), seenProfiles = new Set(), seenDMs = new Set();
 
     const handlePost = (event) => {
+      if (event.kind !== 1) return;
       if (seenPosts.has(event.id)) return; seenPosts.add(event.id);
       setPosts((prev) => { if (prev.some((p) => p.id === event.id)) return prev; return [...prev, event].sort((a, b) => b.created_at - a.created_at).slice(0, 1000); });
       if (!seenProfiles.has(event.pubkey)) fetchProfile(event.pubkey);
