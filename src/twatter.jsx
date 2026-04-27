@@ -15,7 +15,7 @@ import * as nip04 from "nostr-tools/nip04";
 import * as nip19 from "nostr-tools/nip19";
 
 import "./styles.css";
-import { IcHome, IcGlobe, IcMail, IcUser, IcSettings, IcSearch, IcCompose, IcHeart, IcReply, IcZap, IcShare, IcImage, IcLink, IcSend, IcBack, IcClose, IcPlus, IcCheck, IcCopy, IcKey, IcClock, IcDot, IcStar, IcSignal, IcEye, IcEyeOff, IcFollow, IcFollowed, IcSliders, IcAt, IcTag, IcChevron } from "./icons.jsx";
+import { IcHome, IcGlobe, IcMail, IcUser, IcSettings, IcSearch, IcCompose, IcHeart, IcReply, IcZap, IcShare, IcImage, IcLink, IcSend, IcBack, IcClose, IcPlus, IcCheck, IcCopy, IcKey, IcClock, IcDot, IcStar, IcSignal, IcEye, IcEyeOff, IcFollow, IcFollowed, IcSliders, IcAt, IcTag, IcChevron, IcLogo } from "./icons.jsx";
 import { Avatar, ProBadge, PostImage, Switch, Dial, PostBody, PostMeta, Tag, DaySeparator } from "./atoms.jsx";
 import { FeedKitchen, defaultKitchenState, countDialDiff } from "./feedKitchen.jsx";
 import { TweaksPanel, defaultTweaks } from "./tweaks.jsx";
@@ -699,7 +699,7 @@ export default function Twatter() {
         {text && <PostBody text={text} density={tweaks.density}/>}
         <PostImage src={image}/>
         <div className="post-actions">
-          <button onClick={() => toggleLike(event)} className="iconbtn" style={{ color: liked ? "var(--accent)" : "var(--fg-faint)" }}><IcHeart filled={liked} size={16}/> {likeCount ? <span style={{ fontSize: 11, marginLeft: 4 }}>{likeCount}</span> : ""}</button>
+          <button onClick={() => toggleLike(event)} className="iconbtn" style={{ color: liked ? "var(--fire, #ff5522)" : "var(--fg-faint)" }}><IcHeart filled={liked} size={16}/> {likeCount ? <span style={{ fontSize: 11, marginLeft: 4 }}>{likeCount}</span> : ""}</button>
           <button onClick={() => { setReplyTo(replyTo === event.id ? null : event.id); setReplyDraft(""); }} className="iconbtn" style={{ color: replyTo === event.id ? "var(--accent)" : "var(--fg-faint)" }}><IcReply size={16}/> {replies.length ? <span style={{ fontSize: 11, marginLeft: 4 }}>{replies.length}</span> : ""}</button>
           <button onClick={() => setZapModal({ profile, event })} className="iconbtn" style={{ color: zapData ? "var(--saffron)" : "var(--fg-faint)" }}>
             <IcZap filled={!!zapData} size={16}/>
@@ -736,9 +736,12 @@ export default function Twatter() {
 
       {/* LEFT SIDEBAR */}
       <div className="desktop-sidebar" style={{ background: "var(--surface)", borderRight: "1px solid var(--hairline)", display: "flex", flexDirection: "column", height: "100vh", overflowY: "auto", padding: "20px 16px" }}>
-        <div style={{ marginBottom: 32, cursor: "pointer" }} onClick={() => { setView("feed"); setProfileId(null); setActiveChat(null); }}>
-          <div style={{ fontFamily: "var(--serif)", fontSize: 22, fontWeight: 700, marginBottom: 4, letterSpacing: "-0.5px" }}>twat<span style={{ color: "var(--accent)" }}>ter</span></div>
-          <div className="eyebrow" style={{ fontSize: 8 }}>NO ALGORITHM · EST.2026</div>
+        <div style={{ marginBottom: 32, cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }} onClick={() => { setView("feed"); setProfileId(null); setActiveChat(null); }}>
+          <IcLogo size={28}/>
+          <div>
+            <div style={{ fontFamily: "var(--sans)", fontSize: 15, fontWeight: 500, color: "var(--fg)", letterSpacing: "6px", textTransform: "uppercase" }}>Twatter</div>
+            <div className="eyebrow" style={{ fontSize: 8, marginTop: 2 }}>NO ALGORITHM</div>
+          </div>
         </div>
 
         <nav style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 32 }}>

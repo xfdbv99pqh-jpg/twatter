@@ -14,7 +14,18 @@ export const IcUser = mkIcon(<><circle cx="12" cy="8" r="4" /><path d="M4 20c1.5
 export const IcSettings = mkIcon(<><circle cx="12" cy="12" r="3" /><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4" /></>);
 export const IcSearch = mkIcon(<><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></>);
 export const IcCompose = mkIcon(<><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4Z" /></>);
-export const IcHeart = ({ filled, ...p }) => mkIcon(<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />, { fill: filled ? "currentColor" : "none" })(p);
+export const IcHeart = ({ filled, ...p }) => {
+  const { size = 18, color = "currentColor", style, ...rest } = p;
+  if (filled) {
+    return (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} {...rest}>
+      <path d="M12 2C12 2 8 6 8 11c0 3.5 2 6 4 8 2-2 4-4.5 4-8 0-5-4-9-4-9z" fill="#ff5522" opacity="0.9"/>
+      <path d="M12 6c0 0-2.5 2.5-2.5 6 0 2 1 3.5 2.5 5 1.5-1.5 2.5-3 2.5-5 0-3.5-2.5-6-2.5-6z" fill="#ff8800" opacity="0.8"/>
+    </svg>);
+  }
+  return (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={style} {...rest}>
+    <path d="M12 2C12 2 8 6 8 11c0 3.5 2 6 4 8 2-2 4-4.5 4-8 0-5-4-9-4-9z"/>
+  </svg>);
+};
 export const IcReply = mkIcon(<path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />);
 export const IcZap = ({ filled, ...p }) => mkIcon(<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />, { fill: filled ? "currentColor" : "none" })(p);
 export const IcRepost = mkIcon(<><path d="M17 2l4 4-4 4" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></>);
@@ -48,3 +59,21 @@ export const IcDot = ({ color = "currentColor", size = 8, style, ...p }) => (
 export const IcChevron = mkIcon(<path d="m9 18 6-6-6-6" />);
 export const IcAt = mkIcon(<><circle cx="12" cy="12" r="4" /><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8" /></>);
 export const IcSliders = mkIcon(<><line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" /></>);
+
+export const IcLogo = ({ size = 28 }) => (
+  <svg width={size} height={size} viewBox="0 0 90 90" fill="none">
+    <path d="M14 70 L36 52" stroke="#e0e0e0" strokeWidth="6" strokeLinecap="round"/>
+    <path d="M76 70 L54 52" stroke="#e0e0e0" strokeWidth="6" strokeLinecap="round"/>
+    <path d="M14 52 L36 70" stroke="#e0e0e0" strokeWidth="6" strokeLinecap="round"/>
+    <path d="M76 52 L54 70" stroke="#e0e0e0" strokeWidth="6" strokeLinecap="round"/>
+    <path d="M45 6 C30 6 20 16 20 30 C20 42 26 50 34 54 L34 62 C34 64 36 66 38 66 L52 66 C54 66 56 64 56 62 L56 54 C64 50 70 42 70 30 C70 16 60 6 45 6Z" fill="#e0e0e0"/>
+    <ellipse cx="36" cy="28" rx="6" ry="7" fill="#0c0c0c"/>
+    <ellipse cx="54" cy="28" rx="6" ry="7" fill="#0c0c0c"/>
+    <circle cx="36" cy="27" r="2.5" fill="#d4a017"/>
+    <circle cx="54" cy="27" r="2.5" fill="#d4a017"/>
+    <path d="M43 38 L45 42 L47 38" fill="#0c0c0c"/>
+    <line x1="38" y1="58" x2="38" y2="66" stroke="#0c0c0c" strokeWidth="1.5"/>
+    <line x1="45" y1="56" x2="45" y2="66" stroke="#0c0c0c" strokeWidth="1.5"/>
+    <line x1="52" y1="58" x2="52" y2="66" stroke="#0c0c0c" strokeWidth="1.5"/>
+  </svg>
+);
