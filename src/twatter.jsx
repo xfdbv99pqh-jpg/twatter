@@ -33,6 +33,7 @@ const FREE_POST_LIMIT = 300;
 const PRO_POST_LIMIT = 2000;
 const FETCH_LIMIT = 500;
 const PAYMENT_SERVER = import.meta.env.VITE_PAYMENT_SERVER || "http://localhost:7779";
+const MEDIA_SERVER = import.meta.env.VITE_MEDIA_SERVER || "https://media.twatter.xyz";
 const ZAP_PRESETS = [21, 100, 500, 1000, 2100, 5000];
 
 // ======================== HELPERS ========================
@@ -964,7 +965,26 @@ export default function Twatter() {
             {[["Display Name", myProfile.name||"", (v) => updateProfile({...myProfile,name:v})], ["About", myProfile.about||"", (v) => updateProfile({...myProfile,about:v})], ["Picture URL", myProfile.picture||"", (v) => updateProfile({...myProfile,picture:v})], ["NIP-05", myProfile.nip05||"", (v) => updateProfile({...myProfile,nip05:v})], ["⚡ Lightning", myProfile.lud16||"", (v) => updateProfile({...myProfile,lud16:v})]].map(([label,val,onBlur]) => (
               <div key={label} style={{ marginBottom: 12 }}>
                 <label className="eyebrow" style={{ marginBottom: 6 }}>{label}</label>
-                <input className="input" defaultValue={val} onBlur={(e) => { if (e.target.value !== val) onBlur(e.target.value); }} onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} placeholder={label.includes("⚡") ? "you@getalby.com" : ""}/>
+                {label === "Picture URL" ? (
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <input className="input" defaultValue={val} onBlur={(e) => { if (e.target.value !== val) onBlur(e.target.value); }} onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} style={{ flex: 1 }} id="pfp-url-input"/>
+                    <input type="file" accept="image/*" id="pfp-upload" style={{ display: "none" }} onChange={async (e) => {
+                      const file = e.target.files?.[0]; if (!file) return;
+                      const urlInput = document.getElementById("pfp-url-input");
+                      try {
+                        const form = new FormData(); form.append("file", file);
+                        const res = await fetch(`${MEDIA_SERVER}/upload`, { method: "POST", body: form });
+                        const data = await res.json();
+                        if (data.url) { if (urlInput) urlInput.value = data.url; updateProfile({...myProfile, picture: data.url}); }
+                      } catch (err) { console.error("Upload failed:", err); }
+                      e.target.value = "";
+                    }}/>
+                    <button onClick={() => document.getElementById("pfp-upload")?.click()} className="btn sm" style={{ whiteSpace: "nowrap" }}><IcImage size={12}/> Upload</button>
+                    {val && <img src={val} alt="" style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", border: "1px solid var(--hairline-2)", flexShrink: 0 }}/>}
+                  </div>
+                ) : (
+                  <input className="input" defaultValue={val} onBlur={(e) => { if (e.target.value !== val) onBlur(e.target.value); }} onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} placeholder={label.includes("⚡") ? "you@getalby.com" : ""}/>
+                )}
               </div>
             ))}
 
