@@ -467,6 +467,7 @@ export default function Twatter() {
   const [kitchen, setKitchen] = useState(defaultKitchenState());
   const [tweaks, setTweaks] = useState(defaultTweaks());
   const [showTweaks, setShowTweaks] = useState(false);
+  const [showCompose, setShowCompose] = useState(false);
   const [showMobileKitchen, setShowMobileKitchen] = useState(false);
 
   // --- Search ---
@@ -739,6 +740,32 @@ export default function Twatter() {
       {zapModal && <ZapModal targetProfile={zapModal.profile} targetEvent={zapModal.event} sk={sk} pk={pk} relays={relays} onClose={() => setZapModal(null)}/>}
       {showProModal && <ProModal pk={pk} onClose={() => setShowProModal(false)} onProActivated={() => setIsPro(true)}/>}
 
+      {/* COMPOSE MODAL */}
+      {showCompose && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: "10vh" }} onClick={() => setShowCompose(false)}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--hairline-2)", borderRadius: 12, padding: 20, width: "90%", maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Avatar profile={profiles[pk] || {}} size={32} isPro={isPro}/>
+                <span className="post-name">{profiles[pk]?.name || "You"}</span>
+              </div>
+              <button className="iconbtn" onClick={() => setShowCompose(false)}><IcClose size={18}/></button>
+            </div>
+            <textarea className="input" placeholder="What's on your mind?" value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus style={{ resize: "vertical", minHeight: 120, marginBottom: 10, fontFamily: "var(--serif)", fontSize: 17, lineHeight: 1.55 }}/>
+            <ImageAttach image={draftImage} onImage={setDraftImage} onClear={() => setDraftImage(null)}/>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+              <span className="eyebrow" style={{ color: draft.length > POST_LIMIT * 0.9 ? "var(--red)" : "var(--fg-mute)" }}>{draft.length}/{POST_LIMIT}{!isPro && <span style={{ color: "var(--fg-mute)" }}> · <span style={{ cursor: "pointer", color: "var(--accent)" }} onClick={() => { setShowCompose(false); setShowProModal(true); }}>Pro = {PRO_POST_LIMIT}</span></span>}</span>
+              <button onClick={() => { createPost(); setShowCompose(false); }} className="btn primary" disabled={!(draft.trim() || draftImage) || draft.length > POST_LIMIT} style={{ padding: "8px 20px" }}>POST</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MOBILE COMPOSE FAB */}
+      <button className="compose-fab" onClick={() => setShowCompose(true)} style={{ position: "fixed", bottom: 76, right: 16, width: 52, height: 52, borderRadius: "50%", background: "var(--fg)", color: "var(--bg)", border: "none", cursor: "pointer", display: "none", alignItems: "center", justifyContent: "center", zIndex: 60, boxShadow: "0 2px 12px rgba(0,0,0,0.5)" }}>
+        <IcCompose size={22}/>
+      </button>
+
       {/* MOBILE HEADER */}
       <div className="mobile-header" style={{ alignItems: "center", justifyContent: "space-between", padding: "10px 16px", background: "var(--surface)", borderBottom: "1px solid var(--hairline)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={() => { setView("feed"); setProfileId(null); setActiveChat(null); }}>
@@ -768,7 +795,7 @@ export default function Twatter() {
           })}
         </nav>
 
-        <button onClick={createPost} className="btn primary" style={{ width: "100%", marginBottom: 32, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px" }}><IcCompose size={16}/> Compose</button>
+        <button onClick={() => setShowCompose(true)} className="btn primary" style={{ width: "100%", marginBottom: 32, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px" }}><IcCompose size={16}/> Compose</button>
 
         <div style={{ background: "var(--surface-2)", border: "1px solid var(--hairline)", borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 12 }}>
           <div className="eyebrow" style={{ marginBottom: 6 }}>Relays</div>
@@ -944,6 +971,7 @@ export default function Twatter() {
                   </div>
                 )}
                 {isMe && !isPro && <button onClick={() => setShowProModal(true)} className="btn" style={{ marginTop: 14, borderColor: "var(--accent)", color: "var(--accent)" }}>⭐ UPGRADE</button>}
+                {isMe && <button onClick={() => setShowCompose(true)} className="btn primary" style={{ marginTop: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "10px 20px", margin: "14px auto 0" }}><IcCompose size={14}/> Compose</button>}
               </div>
               <div className="section-title">{isMe ? "Your" : `${p.name || "Their"}`} Posts <span className="line"/></div>
               {pPosts.length === 0 ? <div style={{ textAlign: "center", padding: "40px", color: "var(--fg-mute)", fontSize: 13 }}>No posts yet.</div> : pPosts.map((e, i) => (

@@ -438,6 +438,11 @@ html, body, #root {
   cursor: pointer;
 }
 
+/* ======================== COMPOSE FAB ======================== */
+.compose-fab {
+  display: none;
+}
+
 /* ======================== MOBILE HEADER ======================== */
 .mobile-header {
   display: none;
@@ -457,6 +462,11 @@ html, body, #root {
     position: sticky;
     top: 0;
     z-index: 50;
+  }
+
+  /* Show compose FAB */
+  .compose-fab {
+    display: flex !important;
   }
 
   /* Force single column */
