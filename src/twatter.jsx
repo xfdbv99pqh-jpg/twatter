@@ -677,23 +677,70 @@ export default function Twatter() {
 
   // ======================== DERIVED DATA ========================
   const myProfile = profiles[pk] || {};
-  const feedPosts = useMemo(() => posts.filter((p) => contacts.includes(p.pubkey) || p.pubkey === pk), [posts, contacts, pk]);
+  const feedPosts = useMemo(() => {
+    const now = Math.floor(Date.now() / 1000);
+    const filtered = posts.filter((p) => {
+      // Source filter
+      if (kitchen.source === "following" && !contacts.includes(p.pubkey) && p.pubkey !== pk) return false;
+      // "global" shows everything, "lists" not implemented yet so treat as global
+
+      // Time filter
+      if (kitchen.timeHours < 168 * 10) { // not "all time"
+        const age = now - p.created_at;
+        if (age > kitchen.timeHours * 3600) return false;
+      }
+
+      // Reply filter
+      const isReply = p.tags?.some((t) => t[0] === "e");
+      if (!kitchen.showReplies && isReply) return false;
+
+      // Image-only filter: hide posts that are image-only (no real text)
+      if (!kitchen.showImages) {
+        const img = getImageFromEvent(p);
+        const text = getTextWithoutImageUrl(p);
+        if (img && !text) return false; // skip image-only posts
+      }
+
+      // Mute filter
+      if (kitchen.mutes.length > 0) {
+        const content = (p.content || "").toLowerCase();
+        const authorName = (profiles[p.pubkey]?.name || "").toLowerCase();
+        const authorNip05 = (profiles[p.pubkey]?.nip05 || "").toLowerCase();
+        if (kitchen.mutes.some(m => content.includes(m) || authorName.includes(m) || authorNip05.includes(m))) return false;
+      }
+
+      // Disabled relays filter — skip if we can detect the relay
+      // (nostr-tools doesn't always attach relay info, so best-effort)
+
+      return true;
+    });
+    // Sort
+    const sorted = filtered.sort((a, b) => kitchen.order === "oldest" ? a.created_at - b.created_at : b.created_at - a.created_at);
+    // Volume: controls how many posts to show (1.0 = all, 0.5 = half, etc.)
+    if (kitchen.volume < 1) {
+      const maxPosts = Math.max(1, Math.round(sorted.length * kitchen.volume));
+      return sorted.slice(0, maxPosts);
+    }
+    return sorted;
+  }, [posts, contacts, pk, kitchen, profiles]);
   const explorePosts = useMemo(() => posts.filter((p) => !p.tags?.some((t) => t[0] === "e")).slice(0, 300), [posts]);
   const getProfilePosts = useCallback((pubkey) => posts.filter((p) => p.pubkey === pubkey), [posts]);
   const getReplies = useCallback((postId) => posts.filter((p) => p.tags?.some((t) => t[0] === "e" && t[1] === postId)), [posts]);
   const dmConversations = useMemo(() => Object.entries(dmMessages).map(([pubkey, msgs]) => ({ pubkey, messages: msgs, lastMessage: msgs[msgs.length - 1], profile: profiles[pubkey] })).sort((a, b) => (b.lastMessage?.ts || 0) - (a.lastMessage?.ts || 0)), [dmMessages, profiles]);
 
   // ======================== POST COMPONENT ========================
-  const Post = ({ event }) => {
+  const Post = ({ event, hideImages, hideLinks }) => {
     const profile = profiles[event.pubkey];
     const liked = myReactions.has(event.id);
     const likeCount = reactions[event.id]?.size || 0;
     const replies = getReplies(event.id);
-    const image = getImageFromEvent(event);
+    const image = hideImages ? null : getImageFromEvent(event);
     const text = getTextWithoutImageUrl(event);
     const isReply = event.tags?.some((t) => t[0] === "e");
     const zapData = zaps[event.id];
     const authorIsPro = proProfiles.has(event.pubkey) || (event.pubkey === pk && isPro);
+    // Strip links from display text if hideLinks
+    const displayText = hideLinks ? text?.replace(/https?:\/\/\S+/g, "").trim() : text;
     if (isReply) return null;
     return (
       <div className="post">
@@ -701,7 +748,7 @@ export default function Twatter() {
           <Avatar profile={profile} size={40} isPro={authorIsPro} onClick={() => openProfile(event.pubkey)}/>
           <PostMeta profile={profile} ts={event.created_at} isPro={authorIsPro} onProfile={() => openProfile(event.pubkey)} timeAgo={timeAgo}/>
         </div>
-        {text && <PostBody text={text} density={tweaks.density}/>}
+        {displayText && <PostBody text={displayText} density={tweaks.density}/>}
         <PostImage src={image}/>
         <div className="post-actions">
           <button onClick={() => toggleLike(event)} className="iconbtn" style={{ color: liked ? "var(--fire, #ff5522)" : "var(--fg-faint)" }}><IcHeart filled={liked} size={16}/> {likeCount ? <span style={{ fontSize: 11, marginLeft: 4 }}>{likeCount}</span> : ""}</button>
@@ -846,7 +893,7 @@ export default function Twatter() {
               feedPosts.map((e, i) => (
                 <div key={e.id}>
                   {i > 0 && feedPosts[i - 1].created_at !== e.created_at && Math.floor(feedPosts[i - 1].created_at / 86400) !== Math.floor(e.created_at / 86400) && <DaySeparator ts={e.created_at}/>}
-                  <Post event={e}/>
+                  <Post event={e} hideImages={!kitchen.showImages} hideLinks={!kitchen.showLinks}/>
                 </div>
               ))
             )}
