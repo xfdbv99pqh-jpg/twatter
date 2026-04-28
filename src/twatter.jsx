@@ -729,7 +729,7 @@ export default function Twatter() {
   const dmConversations = useMemo(() => Object.entries(dmMessages).map(([pubkey, msgs]) => ({ pubkey, messages: msgs, lastMessage: msgs[msgs.length - 1], profile: profiles[pubkey] })).sort((a, b) => (b.lastMessage?.ts || 0) - (a.lastMessage?.ts || 0)), [dmMessages, profiles]);
 
   // ======================== POST COMPONENT ========================
-  const Post = ({ event, hideImages, hideLinks }) => {
+  const Post = ({ event, hideImages, hideLinks, hideReplies }) => {
     const profile = profiles[event.pubkey];
     const liked = myReactions.has(event.id);
     const likeCount = reactions[event.id]?.size || 0;
@@ -759,8 +759,8 @@ export default function Twatter() {
           </button>
           {isPro && event.pubkey === pk && <button onClick={() => { if (confirm("Delete this post? Relays that support NIP-09 will remove it.")) deletePost(event.id); }} className="iconbtn" style={{ color: "var(--fg-mute)", marginLeft: "auto" }}><IcClose size={14}/></button>}
         </div>
-        {replies.map((r) => { const rp = profiles[r.pubkey]; return (<div key={r.id} className="thread-line"><div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}><Avatar profile={rp} size={28} onClick={() => openProfile(r.pubkey)}/><span className="post-name" style={{ cursor: "pointer" }} onClick={() => openProfile(r.pubkey)}>{rp?.name || shortPk(r.pubkey)}</span><span className="post-time">{timeAgo(r.created_at)}</span></div><PostBody text={r.content} density={tweaks.density}/></div>); })}
-        {replyTo === event.id && (<div style={{ marginTop: 8, marginLeft: 40 }}><input className="input" placeholder="Reply..." value={replyDraft} onChange={(e) => setReplyDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addReply(event)} autoFocus/></div>)}
+        {!hideReplies && replies.map((r) => { const rp = profiles[r.pubkey]; return (<div key={r.id} className="thread-line"><div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}><Avatar profile={rp} size={28} onClick={() => openProfile(r.pubkey)}/><span className="post-name" style={{ cursor: "pointer" }} onClick={() => openProfile(r.pubkey)}>{rp?.name || shortPk(r.pubkey)}</span><span className="post-time">{timeAgo(r.created_at)}</span></div><PostBody text={r.content} density={tweaks.density}/></div>); })}
+        {!hideReplies && replyTo === event.id && (<div style={{ marginTop: 8, marginLeft: 40 }}><input className="input" placeholder="Reply..." value={replyDraft} onChange={(e) => setReplyDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addReply(event)} autoFocus/></div>)}
       </div>
     );
   };
@@ -893,7 +893,7 @@ export default function Twatter() {
               feedPosts.map((e, i) => (
                 <div key={e.id}>
                   {i > 0 && feedPosts[i - 1].created_at !== e.created_at && Math.floor(feedPosts[i - 1].created_at / 86400) !== Math.floor(e.created_at / 86400) && <DaySeparator ts={e.created_at}/>}
-                  <Post event={e} hideImages={!kitchen.showImages} hideLinks={!kitchen.showLinks}/>
+                  <Post event={e} hideImages={!kitchen.showImages} hideLinks={!kitchen.showLinks} hideReplies={!kitchen.showReplies}/>
                 </div>
               ))
             )}
